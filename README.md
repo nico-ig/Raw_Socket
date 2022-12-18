@@ -5,7 +5,7 @@ ou passando como parametro o tipo, a sequencia e uma string de dado (2)
 
 ```cpp
 frame f1();
-frame f2(0x01, 0x01, "Hello Wordld!");
+frame f2(0x01, 0x01, "1");
 
 ```
 
@@ -22,7 +22,7 @@ Para utilizar, o tipo e a sequencia sao valores inteiros, e o dado uma string
 ```cpp
 f1.set_tipo(0x01);
 f1.set_seq(0x01);
-f1.set_dado("Hello World!");
+f1.set_dado("1");
 
 ```
 
@@ -64,7 +64,16 @@ Crc8: 01111000
 ```
 
 ## Tipos de frame
-A biblioteca possui alguns tipos de dados definidos no header
+A biblioteca possui alguns tipos definidos no header
+
+- TEXTO
+- MIDIA
+- ACK
+- NACK
+- ERRO
+- INIT (inicio de transmissao)
+- FIMT (fim de transmissao)
+- DADOS
 
 ## Chamada
 O arquivo de teste eh o frame.cpp, execute:
