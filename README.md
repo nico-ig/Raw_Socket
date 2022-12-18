@@ -1,9 +1,9 @@
 
----
 ## Clang format
 Para usar o clang formatter e manter seu código padronizado, siga os seguintes passos:
->1 - primeiro instale o clang-format na sua distribuição linux
->2 - antes de fazer um commit execute:
+> 1 - primeiro instale o clang-format na sua distribuição linux
+
+> 2 - antes de fazer um commit execute:
 ```bash
  clang-fomat -i codigos.c # ou *.c para modificar todos, também funciona para *.cpp
  ```
