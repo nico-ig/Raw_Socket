@@ -25,6 +25,7 @@ f1.set_seq(0x01);
 f1.set_dado("1");
 
 ```
+Um dado com mais deo que 63 bits nao sera adicionado, a funcao retorna
 
 ## Pegar os dados
 

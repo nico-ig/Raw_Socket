@@ -28,7 +28,7 @@ typedef enum
   ERRO  = 0x1E,
   INIT  = 0x1D,
   FIMT  = 0x0F,
-  DADOS = 0x0D
+  DADOS = 0x0D,
 
 } Tipo;
 
@@ -87,7 +87,13 @@ void frame::add_tam(int t)   {  tam = t;   }
 void frame::add_crc(string seq) { crc8 = calc_crc8(seq); }
 
 void frame::add_dado(string d)  
-{ strcpy(dado, d.c_str()); add_tam(d.size()); add_crc(d); }
+{ 
+  if ( d.size() > BITPOW(6)-1 ) { return; }
+
+  strcpy(dado, d.c_str()); 
+  add_tam(d.size()); 
+  add_crc(d); 
+}
 
 // Transforma uma string em uma sequencias de bits do tipo unsigned int
 UI frame::bit_seq(string seq)
