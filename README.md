@@ -1,59 +1,79 @@
+# Como utilizar a bibliota
 
-# Montar um frame padrao de testes
+O frame pode ser inicializado direto e depois adicionando os dados(1) 
+ou passando como parametro o tipo, a sequencia e uma string de dado (2)
 
+```cpp
 
-# Montagem de frame
+frame f1();
+frame f2(0x01, 0x01, "Hello Wordld!");
 
-- Definir as estruturas pro frame
-- Descobrir o tipo
-- Descobrir o tamanho do Data
-- Transformar a msg em bits
-- Calcular o check sum para o frame
-- Montar o frame
+```
 
+## Adicionar dados
 
-# Desmontagem de frame
+Para adicionar os dados no frame, existem tres funcoes de set: 
 
-- Verificar o marcador de inicio
-- Decodificar o tipo
-- Descobrir a sequencia
-- Ver o tamanho
-- Ler o dado (final eh o tamanho lido)
-- Concatenar os frames()
+- set\_tipo()
+- set\_seq()
+- set\_dado()
 
+Para utilizar, o tipo e a sequencia sao valores inteiros, e o dado uma string
 
-# Concatenar os frames
+```cpp
 
-- Decodificar o dado
-- Exibir a mensagem
+f1.set_tipo(0x01);
+f1.set_seq(0x01);
+f1.set_dado("Hello World!");
 
+```
 
-# Envio do dado
+## Pegar os dados
 
-- Verificar se deu erro
-- Verificar se recebeu ack
-- Deslizar a janela
-- Em caso de erro ver o que reenviar
-- Timeout
+Para pegar os valores do frame, existem tres funcoes de get:
 
+- get\_tipo()
+- get\_seq()
+- get\_dado()
 
-# Receber o dado
+Exemplo:
 
-- Enviar o nack, ack, e qual frame reenviar
-- Veririficar o frame
-- Conferir o check sum
-- Desmontar o frame()
+```cpp
 
+f1.get_tipo();
+f1.get_seq();
+fq.get_dado();
 
-# Erros
+```
 
-- Ver se o marcador de inicio eh valido
-- Ver se eh um tipo valido
-- Implementar mensagens de erros
-- Ver os casos de erros
+## Impressao
 
+```cpp
 
-# Log
+f1.imprime();
 
+```
 
-# Interface do usuario
+Saida:
+
+```
+Frame 1
+Ini:  01111110
+Tipo: 010000
+Seq:  0010
+Tam:  000001
+Dado: 1
+Crc8: 01111000
+
+```
+
+## Tipos de frame
+A biblioteca possui alguns tipos de dados definidos no header
+
+## Chamada
+O arquivo de teste eh o frame.cpp, execute:
+
+```
+make
+./frame
+```
