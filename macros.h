@@ -24,6 +24,6 @@
 
 // Macro que imprime uma sequencia de bits
 #define IMPRIME(seq, tam) for ( int i = tam-1; i >= 0; i-- ) \
-                            cout << BIT(seq, i); \
+                            cout << BIT(seq, i) << " "; \
                           cout << "\n";
 #endif
