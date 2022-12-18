@@ -5,9 +5,6 @@
 
 using namespace std;
 
-// Macro que fica em 1 ou 0 de acordo com o valor do bit avaliado
-#define BIT(value, des) ( (value & (1 << des)) ? 1 : 0 )
-
 int main()
 {
 //  string str = "Hello World!";
@@ -23,6 +20,6 @@ int main()
 //
 //  cout << frame << "\n";
 
-  frame f;
-  cout << sizeof(f);
+  frame f(0x01, 0x01, "oiii");
+  cout << sizeof(frame) << "\n";
 }
