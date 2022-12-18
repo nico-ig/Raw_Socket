@@ -6,6 +6,8 @@
 
 #include "macros.h"
 
+#define UC unsigned char
+
 // Define o polinomio usado no calculo do CRC
 #define POLINOMIO 0x9B
 
@@ -20,30 +22,42 @@ char bitSeq(string seq)
   for ( char c : seq )
     for ( int i = 0; i < sizeof(char) * 8; i++ )
       bitSeq |= ( BIT(c, i) << des++ );
- 
+
   return bitSeq;
 }
 
 char calc_crc8(string seq)
 {
-  int i;
-  seq = "11";
-  char crc = bitSeq(seq);
-  
-  crc << 8;
+  int i, des;
+  int tam = seq.size() * 16;
+  int crc = bitSeq(seq) << 8;
   
   while ( crc >> 8 )
   {
+    IMPRIME(crc, tam);
+    
     // Acha o primeiro 1
-    for ( i = 0; ! BIT(crc, i); i++ );
-  
+    for ( i = tam - 1; ! BIT(crc, i); i-- );
+    
+    // Calcula o deslocamento e o novo tamanho
+    des = tam - i - 1;
+    tam = i + 1;
+    
     // Alinha o primeiro 1 na primeira posicao
-    crc << i;
-  
+    crc <<= des;
+    
+    cout << "<< " << des << "\n";
+    IMPRIME(crc, tam);
+    IMPRIME(POLINOMIO << (tam - 8), tam);
+    cout << "------------------\n";
+    
     // Faz a divisao com o xor entre os operandos
-    crc ^= POLINOMIO;
+    crc ^= (POLINOMIO << (tam - 8));
+    
+    IMPRIME(crc, tam);
+    cout << "\n";
   }
-
+  
   return crc;
 }
 
@@ -60,12 +74,12 @@ class frame
     void add_crc(string d);
 
   public:
-    char ini :8;
-    char tipo:6;
-    char seq :4;
-    char tam :6;
+    UC ini :8;
+    UC tipo:6;
+    UC seq :4;
+    UC tam :6;
     char dado[BITPOW(6)-1];
-    char crc8:8;
+    UC crc8:8;
 
   // -------- Construtor -------- //
   frame(int t, int s, string d);

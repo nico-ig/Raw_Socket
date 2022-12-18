@@ -20,6 +20,5 @@ int main()
 //
 //  cout << frame << "\n";
 
-  frame f(0x01, 0x01, "1010");
-  cout << sizeof(frame) << "\n";
+  frame f(0x01, 0x01, "1");
 }
