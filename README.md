@@ -4,7 +4,6 @@ O frame pode ser inicializado direto e depois adicionando os dados(1)
 ou passando como parametro o tipo, a sequencia e uma string de dado (2)
 
 ```cpp
-
 frame f1();
 frame f2(0x01, 0x01, "Hello Wordld!");
 
@@ -21,7 +20,6 @@ Para adicionar os dados no frame, existem tres funcoes de set:
 Para utilizar, o tipo e a sequencia sao valores inteiros, e o dado uma string
 
 ```cpp
-
 f1.set_tipo(0x01);
 f1.set_seq(0x01);
 f1.set_dado("Hello World!");
@@ -39,7 +37,6 @@ Para pegar os valores do frame, existem tres funcoes de get:
 Exemplo:
 
 ```cpp
-
 f1.get_tipo();
 f1.get_seq();
 fq.get_dado();
@@ -49,7 +46,6 @@ fq.get_dado();
 ## Impressao
 
 ```cpp
-
 f1.imprime();
 
 ```
