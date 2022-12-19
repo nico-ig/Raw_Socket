@@ -4,7 +4,7 @@ SRC = $(wildcard *.cpp)
 OBJ = $(SRC:.cpp=.o)
 
 # O nome do target deve ser o nome do arquivo principal
-TARGET = msg
+TARGET = frame
 
 all: $(TARGET)
 
