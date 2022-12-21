@@ -77,9 +77,9 @@ A biblioteca possui alguns tipos definidos no header
 - DADOS
 
 ## Chamada
-O arquivo de teste eh o frame.cpp, execute:
+O arquivo de teste eh o exemplo.cpp, execute:
 
 ```
 make
-./frame
+./exemplo
 ```
