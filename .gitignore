@@ -1,3 +1,7 @@
 .vscode
 msg
 *.o
+exemplo
+*.o
+vgcore*
+*.log
