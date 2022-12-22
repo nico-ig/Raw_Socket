@@ -154,6 +154,7 @@ UI frame::calc_crc8(string seq, UI shift)
  
   //cout << "crc8: "; 
   //IMPRIME(crc, 8);
+  //cout << "\n";
   return crc;
 }
 

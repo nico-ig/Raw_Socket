@@ -44,6 +44,15 @@ fq.get_dado();
 
 ```
 
+## CRC8
+
+O crc eh calculado ao criar o frame. Para realizar a verificacao, utilize a 
+funcao chk\_crc8(). Ela retorna 1 caso seja valido e 0 caso seja invalido.
+
+```cpp
+f1.chk_crc8() ? cout << "valido" : cout << "invalido";
+```
+
 ## Impressao
 
 ```cpp
