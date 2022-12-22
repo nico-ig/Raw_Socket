@@ -5,16 +5,11 @@
 #include <cstring>
 #include <iostream>
 
+#include "crc8.h"
 #include "macros.h"
-
-#define UC unsigned char
-#define UI unsigned int
 
 // Define o codigo de inicio
 #define INI 0x7E
-
-// Define o polinomio usado no calculo do CRC
-#define POLINOMIO 0x9B
 
 using namespace std;
 
@@ -53,9 +48,6 @@ class frame
     void add_tam(int t);
     void add_crc(string d);
 
-    UI calc_crc8(string seq, UI shift);
-    UI bit_seq(string seq);
-
   public:
   // ------- Construtores ------ //
   frame();
@@ -75,6 +67,7 @@ class frame
 
   void imprime();
   int chk_crc8() { return ! calc_crc8(dado, crc8); }
+
 };
 
 
@@ -95,69 +88,6 @@ void frame::add_dado(string d)
   add_tam(d.size()); 
   add_crc(d); 
 }
-
-// Transforma uma string em uma sequencias de bits do tipo unsigned int
-UI frame::bit_seq(string seq)
-{
-  int des = 0;
-  UI bit_seq;
-  ZERA(bit_seq);
-
-  for ( char c : seq )
-    for ( int i = 0; i < sizeof(char) * 8; i++ )
-      bit_seq |= ( BIT(c, i) << des++ );
-
-  return bit_seq;
-}
-
-// Calcula o crc8 de uma string, para imprimir o calculo de CRC descomente
-UI frame::calc_crc8(string seq, UI shift)
-{
-  int i, des;
-  int tam = seq.size() * 16;
-  UI crc = bit_seq(seq);
-
-  //cout << "Dado: ";
-  //IMPRIME(crc, seq.size()*8);
-  //cout << "Polinomio: ";
-  //IMPRIME(POLINOMIO, 8);
-  //cout << "\n";
- 
-  crc <<= 8;
-  crc += shift;
-
-  while ( crc >> 8 )
-  {
-    //IMPRIME(crc, tam);
-
-    // Acha o primeiro 1
-    for ( i = tam - 1; ! BIT(crc, i); i-- );
-    
-    // Calcula o deslocamento
-    des = tam - i - 1;
-    
-    // Calcula o novo tamanho, ignora os 0 a esquerda, 
-    // alinhando o primeiro 1 na primeira posicao
-    tam = i + 1;
-    
-    //cout << "<< " << des << "\n";
-    //IMPRIME(crc, tam);
-    //IMPRIME(POLINOMIO << (tam - 8), tam);
-    //cout << "----------------- xor\n";
-    
-    // Faz a divisao com o xor entre os operandos
-    crc ^= (POLINOMIO << (tam - 8));
-    
-    //IMPRIME(crc, tam);
-    //cout << "\n";
-  }
- 
-  //cout << "crc8: "; 
-  //IMPRIME(crc, 8);
-  //cout << "\n";
-  return crc;
-}
-
 
 // ------------------------------- PUBLIC --------------------------------- //
 frame::frame() { add_ini(INI); }
