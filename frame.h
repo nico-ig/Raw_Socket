@@ -53,7 +53,7 @@ class frame
     void add_tam(int t);
     void add_crc(string d);
 
-    UI calc_crc8(string seq);
+    UI calc_crc8(string seq, UI shift);
     UI bit_seq(string seq);
 
   public:
@@ -66,14 +66,15 @@ class frame
   UC get_tipo()    { return tipo; }
   UC get_seq()     { return seq;  }
   UC get_tam()     { return tam;  }
-  char *get_dado() { return dado; }
   UI get_crc8()    { return crc8; }
+  char *get_dado() { return dado; }
 
   void set_tipo(int t)    { add_tipo(t); }
   void set_seq(int s)     { add_seq(s);  }
   void set_dado(string d) { add_dado(d); }
 
   void imprime();
+  int chk_crc8() { return ! calc_crc8(dado, crc8); }
 };
 
 
@@ -84,7 +85,7 @@ void frame::add_tipo(int t)  { tipo = t;   }
 void frame::add_seq(int s)   {  seq = s;   }
 void frame::add_tam(int t)   {  tam = t;   }
 
-void frame::add_crc(string seq) { crc8 = calc_crc8(seq); }
+void frame::add_crc(string seq) { crc8 = calc_crc8(seq, 0); }
 
 void frame::add_dado(string d)  
 { 
@@ -110,7 +111,7 @@ UI frame::bit_seq(string seq)
 }
 
 // Calcula o crc8 de uma string, para imprimir o calculo de CRC descomente
-UI frame::calc_crc8(string seq)
+UI frame::calc_crc8(string seq, UI shift)
 {
   int i, des;
   int tam = seq.size() * 16;
@@ -123,6 +124,8 @@ UI frame::calc_crc8(string seq)
   //cout << "\n";
  
   crc <<= 8;
+  crc += shift;
+
   while ( crc >> 8 )
   {
     //IMPRIME(crc, tam);
