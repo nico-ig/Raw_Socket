@@ -40,7 +40,7 @@ Exemplo:
 ```cpp
 f1.get_tipo();
 f1.get_seq();
-fq.get_dado();
+f1.get_dado();
 
 ```
 
@@ -48,29 +48,47 @@ fq.get_dado();
 
 O crc eh calculado ao criar o frame. Para realizar a verificacao, utilize a 
 funcao chk\_crc8(). Ela retorna 1 caso seja valido e 0 caso seja invalido.
+Eh necessario chamar a funcao gen\_crc8\_table() no inicio do programa, para
+que seja possivel realizar o calculo do crc8
 
 ```cpp
+gen_crc8_table();
 f1.chk_crc8() ? cout << "valido" : cout << "invalido";
 ```
 
 ## Impressao
 
-```cpp
-f1.imprime();
+Os dados podem ser impressos na forma binaria, hexadecimal ou decimal
 
+```cpp
+f1.imprime(BIN);
+f1.imprime(HEX);
+f1.imprime(DEC);
 ```
 
 Saida:
 
 ```
-Frame 1
-Ini:  01111110
-Tipo: 010000
-Seq:  0010
-Tam:  000001
-Dado: 1
-Crc8: 01111000
+ Ini: 01111110
+Tipo: 000001
+ Seq: 0001
+ Tam: 00000001
+Dado: 00110000
+Crc8: 01010110
 
+ Ini: 0x7E
+Tipo: 0x1
+ Seq: 0x1
+ Tam: 0x1
+Dado: 0x30
+Crc8: 0x56
+
+ Ini: 126
+Tipo: 1
+ Seq: 1
+ Tam: 1
+Dado: 0
+Crc8: 86
 ```
 
 ## Tipos de frame
