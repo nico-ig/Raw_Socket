@@ -1,6 +1,9 @@
 #ifndef _MACROS_
 #define _MACROS_
 
+#define UC unsigned char
+#define UI unsigned int
+
 // Macro que cria uma sequencia com o 1 deslocado "des" posicoes a direita
 #define MASKR(des) (1 << des)
 
