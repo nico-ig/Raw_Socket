@@ -64,19 +64,18 @@ int main(int argc, char *argv[]) {
   int byteRead, byteSend;
   int counter = 0;
   while (counter++ < 5) {
-    strcat(bufferSend, to_string(counter).c_str());
+    strcat(bufferSend, "~\001,Hello World");
+    cout << "Enviando: " << soquete << endl;
     byteSend = send(soquete, bufferSend, 1024 - 1, 0);
     byteRead = recv(soquete, buffer, 1024 - 1, 0);
 
     // send data to socket
-
     if (byteRead < 0) {
       printf("Erro no recvfrom %d\n", byteRead);
       exit(-1);
     }
     buffer[byteRead] = 0;
     // c++ print every byte in buffer
-
     printf("recebido %d Bytes: -> %s \n", byteRead, buffer);
     for (int i = 0; i < byteRead; i++) {
       if ((unsigned int)buffer[i] > 0 && (unsigned int)buffer[i] < 126) {
