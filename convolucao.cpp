@@ -65,18 +65,18 @@ void gen_conv_table(int p1, int p2)
 }
 
 // Retorna a convolucao de uma determinada string
-vector<uint16_t> set_conv(string d)
+uint16_t *gen_conv(uint8_t *msg, int tamBytes)
 {
-  uint8_t *msg = (uint8_t *)d.c_str();
-  uint8_t tamBytes = d.size();
-  vector<uint16_t> msgConv;
+  uint16_t *msgConv;
+
+  if ( ! (msgConv = (uint16_t *) malloc(sizeof(uint16_t) * tamBytes)) ) { exit(0); }
 
   // Calcula a convergencia para cada byte
   for ( int i = 0; i < tamBytes; i++ )
   {
     uint8_t byte = msg[i];
     uint16_t conv = conv_table[INITIAL_STATE][byte]; 
-    msgConv.push_back(conv);
+    msgConv[i] = conv;
 
     INITIAL_STATE = conv & 3;
   }

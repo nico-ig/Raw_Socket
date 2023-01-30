@@ -7,6 +7,7 @@
 
 #include "crc8.h"
 #include "macros.h"
+#include "convolucao.h"
 
 // Define o codigo de inicio
 #define INI 0x7E
@@ -50,6 +51,7 @@ class frame
     void add_dado(string d);
     void  add_tam(int t);
     void  add_crc(uint8_t *d);
+    void add_conv(string d);
     
     void imprime_bin();
     void imprime_hex();
@@ -70,7 +72,9 @@ class frame
 
   void     set_seq(int s) { add_seq(s);  }
   void    set_tipo(int t) { add_tipo(t); }
+
   void set_dado(string d) { add_dado(d); }
+  void set_dado(string d, Tipo tipo) { add_conv(d); }
 
   int chk_crc8() { return (calc_crc8((uint8_t *)dado, tam) == crc8); }
 
@@ -95,6 +99,27 @@ void frame::add_dado(string d)
   add_tam(d.size()); 
   strcpy(dado, d.c_str()); 
   add_crc((uint8_t *)dado); 
+}
+
+void frame::add_conv(string d)
+{
+  int tamBytes = d.size() * 2;
+  uint16_t *conv = gen_conv((uint8_t *) d.c_str(), tamBytes);
+
+  // Copia a convolucao para um vetor de char
+  char *dadoStr;
+  if ( ! (dadoStr = (char *) malloc(sizeof(char) * tamBytes)) ) { exit(1); }
+  memmove(dadoStr, conv, tamBytes);
+
+  // Copia o vetor de char para uma string
+  string dadoConv;
+  dadoConv.append(dadoStr);
+  printf("%s\n", dadoStr);
+  free(dadoStr);
+  free(conv);
+
+  add_dado(dadoConv);
+  cout << dadoConv.size();
 }
 
 void frame::imprime_bin()

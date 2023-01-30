@@ -6,6 +6,6 @@
 void gen_conv_table(int p1, int p2);
 
 // Retorna a convolucao de uma determinada string
-std::vector<uint16_t> set_conv(std::string d);
+uint16_t *gen_conv(uint8_t *msg, int tamBytes);
 
 #endif
