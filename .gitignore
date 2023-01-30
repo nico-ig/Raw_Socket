@@ -5,3 +5,7 @@ msg
 lixo
 frame
 exemplo
+exemplo
+*.o
+vgcore*
+*.log

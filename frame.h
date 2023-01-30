@@ -4,6 +4,8 @@
 #include <bitset>
 #include <cstring>
 #include <iostream>
+#include <string.h>
+#include <string>
 
 #include "crc8.h"
 #include "macros.h"
@@ -46,7 +48,7 @@ private:
   void add_seq(int s);
   void add_dado(string d);
   void add_tam(int t);
-  void add_crc(uint8_t *d);
+  void add_crc(string d);
 
   void imprime_bin();
   void imprime_hex();
@@ -69,7 +71,7 @@ public:
   void set_tipo(int t) { add_tipo(t); }
   void set_dado(string d) { add_dado(d); }
 
-  int chk_crc8() { return (calc_crc8((uint8_t *)dado, tam) == crc8); }
+  int chk_crc8() { return (calc_crc8(dado, tam) == crc8); }
 
   void imprime(int base);
 };
@@ -81,13 +83,22 @@ void frame::add_tipo(int t) { tipo = t; }
 void frame::add_seq(int s) { seq = s; }
 void frame::add_tam(int t) { tam = t; }
 
-void frame::add_crc(uint8_t *d) { crc8 = calc_crc8(d, tam); }
+void frame::add_crc(string d) { crc8 = calc_crc8(d, tam); }
 
 void frame::add_dado(string d) {
+  // cout << "dado-frame: " << d << "\n";
   if (d.size() > BITPOW(6) - 1) {
     cout << "Erro: Dado muito grande\n";
     return;
   }
+  add_tam(d.length());
+  // clear dado
+  memset(dado, 0, sizeof(dado));
+  // copy d to dado
+  memcpy(dado, d.c_str(), d.length());
+
+  // cout << "tam: " << tam << "\n" << d.length() << "\n";
+  // string d to char dado
 }
 
 void frame::imprime_bin() {
@@ -99,19 +110,19 @@ void frame::imprime_bin() {
   IMPRIME(seq, 4);
   cout << " Tam: ";
   IMPRIME(tam, 8);
-  cout << "Dado: ";
-  for (int i = 0; i < tam; i++) {
-    unsigned int c = dado[i];
-    for (int j = 0; j < 8; j++) {
-      c <<= 1;
-      if (c & 0x100) {
-        cout << "1";
-      } else {
-        cout << "0";
-      }
-    }
-    cout << " ";
-  }
+  cout << "Dado: " << dado << "\n";
+  // for (int i = 0; i < tam; i++) {
+  //   unsigned int c = dado[i] - '0';
+  //   for (int j = 0; j < 8; j++) {
+  //     c <<= 1;
+  //     if (c & 0x100) {
+  //       cout << "1";
+  //     } else {
+  //       cout << "0";
+  //     }
+  //   }
+  //   cout << " ";
+  // }
   cout << "\n";
   cout << "Crc8: ";
   IMPRIME(crc8, 8);
