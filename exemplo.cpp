@@ -1,37 +1,39 @@
 #include <iostream>
 #include <bitset>
+#include <vector>
 
 #include "crc8.h"
 #include "frame.h"
+#include "convolucao.h"  
 
 using namespace std;
 
 int main()
 {
   gen_crc8_table();
+  gen_conv_table(5, 7);
   string status;
 
   frame f1;
   f1.set_tipo(TEXTO);
   f1.set_seq(0x01);
-  f1.set_dado("0");
-
-  frame f2(MIDIA, 0x02, "1");
-  frame f3(ACK, 0x03, "Hello World!");
   
-  cout << "Frame 1\n";
-  f1.imprime(BIN);
+  string dado = "\a";
+  vector<uint16_t> conv = set_conv(dado);
+
+  string dadoConv;
+  for ( uint16_t byteConv : conv )
+  {
+    printf("0x%X\n", byteConv);
+    dadoConv.push_back(byteConv & 0xff);
+    dadoConv.push_back((byteConv >> 8) & 0xff);
+  }
+
+  f1.set_dado(dadoConv);
+
+  cout << "Frame 1 Convolucao\n";
+  f1.imprime(HEX);
   f1.chk_crc8() ? status = "valido" : status = "invalido";
   cout << "Crc8 " << status << "\n";
-
-  cout << "\nFrame 2\n";
-  f2.imprime(HEX);
-  f2.chk_crc8() ? status = "valido" : status = "invalido";
-  cout << "Crc8 " << status << "\n";
-
-  cout << "\nFrame 3\n";
-  f3.imprime(DEC);
-  f3.chk_crc8() ? status = "valido" : status = "invalido";
-  cout << "Crc8 " << status << "\n";
-
 }
+

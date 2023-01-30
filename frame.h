@@ -26,6 +26,7 @@ typedef enum
   INIT  = 0x1D,
   FIMT  = 0x0F,
   DADOS = 0x0D,
+  CONV  = 0x11 
 
 } Tipo;
 
