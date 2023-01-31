@@ -7,7 +7,7 @@
 #include "frame.h"
 #include "convolucao.h"  
 
-#define GET_CONV(input) ((input & 0x30000) >> 16)
+#define GET_CONV(input) ((input & 0x300) >> 8)
 #define CHANGE_STATES for ( int i = 0; i < 4; i++ ) \
                         estado[i][ATUAL] = estado[i][PROX]
 
@@ -15,106 +15,169 @@ typedef enum { ATUAL, PROX } Estado;
 
 using namespace std;
 
-int main()
+vector<vector<int>> estado(4, vector<int> (2));
+vector<vector<int>> trelica(4, vector<int> (32, -1));
+
+vector<vector<int>> caminho   { { 1, 0, 0, 2},
+                                { 2, 0, 0, 1},
+                                { 0, 1, 2, 0},
+                                { 0, 2, 1, 0} };
+
+vector<vector<int>> distancia { { 0, 1, 1, 2 },
+                                { 1, 0, 2, 1 },
+                                { 1, 2, 0, 1 },
+                                { 2, 1, 1, 0 } };
+
+void fill_state_byte(int no, int conv)
 {
-  vector<vector<int>> estado(4, vector<int> (2));
+  // Preenche um estado da trelica
+  for ( int i = 0; i < 4; i++ )
+  {
+    // Preenche para cada estado j saindo de i
+    for ( int j = 0; j < 4; j++ )
+    {
+      // Pula se n puder chegar no estado j saindo de i
+      if ( ! caminho[i][j] ) { continue; }
 
-  vector<vector<int>> caminho   { { 1, 0, 0, 2},
-                                  { 2, 0, 0, 1},
-                                  { 0, 1, 2, 0},
-                                  { 0, 2, 1, 0} };
+      int chegou = trelica[j][no];
 
-  vector<vector<int>> distancia { { 0, 1, 1, 2 },
-                                  { 1, 0, 2, 1 },
-                                  { 1, 2, 0, 1 },
-                                  { 2, 1, 1, 0 } };
+      // Se ngm tiver chego no estado j ainda
+      if ( chegou == -1 ) { trelica[j][no] = i; }
 
-  int input = 0xA4;
-  int lg = __lg(input);
-  int cntConv = ceil(lg/2.0); 
+      // Caso ja tenha alguem no estado j
+      else 
+      { 
+        // Ve a distancia de quem ja ta la
+        int disChegou = estado[chegou][ATUAL] + distancia[chegou][conv];
 
-  vector<vector<int>> trelica(4, vector<int> (cntConv, -1));
+        // Ve a distancia do estado j
+        int disI      = estado[i][ATUAL]      + distancia[i][conv];
+        if ( disI < disChegou ) { trelica[j][no] = i; }
+      }
+    }
+  }
 
-  // 1o estado
-  input <<= (17-lg);
-  int conv = GET_CONV(input);
+  // Atualiza a distancia andada ate cada estado
+  for ( int i = 0; i < 4; i++ )
+  {
+    int chegou = trelica[i][no];
+    estado[i][PROX] = estado[chegou][ATUAL] + distancia[i][conv];
+  }
+
+  CHANGE_STATES;
+}
+
+void init_first_no(int firstNo, int conv)
+{
   estado[0][ATUAL] = distancia[0][conv];
   estado[3][ATUAL] = distancia[3][conv];
-  trelica[0][0] = 0;
-  trelica[3][0] = 0;
+  trelica[0][firstNo] = 0;
+  trelica[3][firstNo] = 0;
+}
 
-  // 2o estado
-  input <<= 2;
-  conv = GET_CONV(input);
+void init_second_no(int firstNo, int conv)
+{
   estado[0][PROX] = estado[0][ATUAL] + distancia[0][conv];
   estado[1][PROX] = estado[3][ATUAL] + distancia[1][conv];
   estado[2][PROX] = estado[3][ATUAL] + distancia[2][conv];
   estado[3][PROX] = estado[0][ATUAL] + distancia[3][conv];
-  trelica[0][1] = 0;
-  trelica[1][1] = 3;
-  trelica[2][1] = 3;
-  trelica[3][1] = 0;
+  trelica[0][firstNo+1] = 0;
+  trelica[1][firstNo+1] = 3;
+  trelica[2][firstNo+1] = 3;
+  trelica[3][firstNo+1] = 0;
   CHANGE_STATES;
+}
 
-  // Demais estados
-  for ( int no = 2; no < cntConv; no++ )
+void conv_byte(int input, int ini)
+{
+  for ( int no = ini; no < 4 + ini; no++ )
   {
+    int conv = GET_CONV(input << 2);
     input <<= 2;
-    conv = GET_CONV(input);
-
-    // Preenche um estado da trelica
-    for ( int i = 0; i < 4; i++ )
-    {
-      // Preenche para cada estado j saindo de i
-      for ( int j = 0; j < 4; j++ )
-      {
-        // Pula se n puder chegar no estado j saindo de i
-        if ( ! caminho[i][j] ) { continue; }
-
-        int chegou = trelica[j][no];
-
-        // Se ngm tiver chego no estado j ainda
-        if ( chegou == -1 ) { trelica[j][no] = i; }
-
-        // Caso ja tenha alguem no estado j
-        else 
-        { 
-          // Ve a distancia de quem ja ta la
-          int disChegou = estado[chegou][ATUAL] + distancia[chegou][conv];
-
-          // Ve a distancia do estado j
-          int disI      = estado[i][ATUAL]      + distancia[i][conv];
-          if ( disI < disChegou ) { trelica[j][no] = i; }
-        }
-      }
-    }
-
-    // Atualiza a distancia andada ate cada estado
-    for ( int i = 0; i < 4; i++ )
-    {
-      int chegou = trelica[i][no];
-      estado[i][PROX] = estado[chegou][ATUAL] + distancia[i][conv];
-    }
-
-    CHANGE_STATES;
+    fill_state_byte(no, conv);
   }
-  
+}
+
+void conv_byte_init(int input, int firstNo)
+{
+  for ( int no = firstNo; no < 2 + firstNo; no++ )
+  {
+    int conv = GET_CONV(input << 2);
+    input <<= 2;
+    fill_state_byte(no, conv);
+  }
+}
+
+void init_trelica(uint8_t input)
+{
+  // 1o estado
+  int lg = __lg(input);
+  int firstNo = (7-lg)/2;
+
+  // Caminho de 0 atr a primeira conv diferente de 0
+  for ( int i = 0; i < firstNo; i++ )
+    trelica[0][i] = 0;
+
+  // 1o no diferente de 0
+  int conv = GET_CONV(input << 9-lg);
+  input <<= 9-lg;
+  init_first_no(firstNo, conv);
+
+  // 2o no diferente de 0
+  conv = GET_CONV(input << 2);
+  input <<= 2;
+  init_second_no(firstNo, conv);
+
+  conv_byte_init(input, firstNo + 2);
+}
+
+int find_last_state()
+{
   // Acha o no onde tem que terminar
   int atual = 0;
   for ( int i = 1; i < 4; i++ )
     if ( estado[i][PROX] < estado[atual][PROX] ) { atual = i; }
 
+  return atual;
+}
+
+uint8_t backtrack_conv(int *ini, int *beginByte)
+{
   // Refaz o caminho da convolucao
-  int dado = 0;
-  for ( int no = cntConv - 1; no >= 0; no--)
+  uint8_t dado = 0;
+  int atual = *ini;
+  for ( int no = *beginByte; no > *beginByte - 8; no--)
   {
     int anterior = trelica[atual][no];
     int bit = caminho[anterior][atual] - 1;
-    dado = dado | (bit << (cntConv - 1 - no));
+    dado = (dado << 1) | bit;
     atual = anterior;
   }
 
-  cout << dado << "\n";
+  *ini = atual;
+  *beginByte -= 8;
+  return dado;
+}
+
+int main()
+{
+  uint8_t msg[63]= { 0xA4, 0xA4 };
+  int tamBytes = 2;
+
+// ============================================================ //
+  int tamOrigMsg = ceil(tamBytes/2);
+
+  uint8_t msgOrig[tamOrigMsg];
+
+  init_trelica(msg[0]);
+
+  for ( int byte = 1; byte < tamBytes; byte++ )
+    conv_byte(msg[byte], byte*4);
+
+  int ini = find_last_state();
+  int beginByte = tamBytes * 4 - 1;
+  for ( int i = 0; i < tamOrigMsg; i++ )
+    msgOrig[i] = backtrack_conv(&ini, &beginByte); 
 
 //  gen_crc8_table();
 //  gen_conv_table(5, 7);
