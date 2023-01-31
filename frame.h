@@ -106,20 +106,9 @@ void frame::add_conv(string d)
   int tamBytes = d.size() * 2;
   uint16_t *conv = gen_conv((uint8_t *) d.c_str(), tamBytes);
 
-  // Copia a convolucao para um vetor de char
-  char *dadoStr;
-  if ( ! (dadoStr = (char *) malloc(sizeof(char) * tamBytes)) ) { exit(1); }
-  memmove(dadoStr, conv, tamBytes);
-
-  // Copia o vetor de char para uma string
-  string dadoConv;
-  dadoConv.append(dadoStr);
-  printf("%s\n", dadoStr);
-  free(dadoStr);
-  free(conv);
-
-  add_dado(dadoConv);
-  cout << dadoConv.size();
+  // Copia a convolucao para o campo de dado
+  memmove(this->dado, conv, tamBytes);
+  add_tam(tamBytes);
 }
 
 void frame::imprime_bin()

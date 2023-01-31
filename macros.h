@@ -20,7 +20,7 @@
 #define ZERABIT(seq, bit) ( seq &= ~MASKR(bit) )
 
 // Macro para a "p" potencia de 2
-#define BITPOW(p) ( MASKR(6) )
+#define BITPOW(p) ( MASKR(p) )
 
 // Macro que imprime uma sequencia de bits
 #define IMPRIME(seq, tam) for ( int i = tam-1; i >= 0; i-- ) \
