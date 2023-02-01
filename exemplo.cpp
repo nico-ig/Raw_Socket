@@ -179,6 +179,11 @@ int main()
   for ( int i = 0; i < tamOrigMsg; i++ )
     msgOrig[i] = backtrack_conv(&ini, &beginByte); 
 
+  char dado[tamOrigMsg + 1];
+  memmove(dado, msgOrig, tamOrigMsg);
+  dado[tamOrigMsg] = 0;
+  //printf("0x%X\n", dado[0] & 0xFF );
+
 //  gen_crc8_table();
 //  gen_conv_table(5, 7);
 //  string status;
