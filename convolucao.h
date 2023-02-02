@@ -8,4 +8,7 @@ void gen_conv_table(int p1, int p2);
 // Retorna a convolucao de uma determinada string
 uint16_t *gen_conv(uint8_t *msg, int tamBytes);
 
+// Retorna a sequencia original de uma entrada
+char *deconv(uint8_t *msg, int tamBytes);
+
 #endif

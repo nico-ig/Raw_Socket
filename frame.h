@@ -12,6 +12,9 @@
 // Define o codigo de inicio
 #define INI 0x7E
 
+// Define o tamanho maximo do dado no frame
+#define TAM_DADO 63
+
 using namespace std;
 
 typedef enum { BIN, HEX, DEC } Base;
@@ -41,7 +44,7 @@ class frame
     uint8_t tipo:6;
     uint8_t seq :4;
     uint8_t  tam:6;
-    char  dado[63];
+    char  dado[TAM_DADO];
     uint8_t   crc8;
 
   // ---------- Funcoes -------- //    
@@ -80,6 +83,7 @@ class frame
 
   void imprime(int base);
 
+  int deconv_dado();
 };
 
 
@@ -94,7 +98,8 @@ void frame::add_crc(uint8_t *d) { crc8 = calc_crc8(d, tam); }
 
 void frame::add_dado(string d)  
 { 
-  if ( d.size() > 63 ) { return; }
+  if ( d.size() > TAM_DADO )
+    { printf("Tamanho muito grande, frame nao criado\n"); return; }
 
   add_tam(d.size()); 
   strcpy(dado, d.c_str()); 
@@ -103,12 +108,25 @@ void frame::add_dado(string d)
 
 void frame::add_conv(string d)
 {
-  int tamBytes = d.size() * 2;
+  int tamBytes = d.size();
+
+  if ( d.size() > TAM_DADO/2 )
+    { printf("Tamanho muito grande, frame nao criado\n"); return; }
+
   uint16_t *conv = gen_conv((uint8_t *) d.c_str(), tamBytes);
 
   // Copia a convolucao para o campo de dado
-  memmove(this->dado, conv, tamBytes);
+  for ( int i = 0; i < tamBytes; i++)
+  {
+    dado[i*2] = (conv[i] >> 8) & 0xFF;
+    dado[i*2+1] = conv[i] & 0xFF;
+  }
+
   add_tam(tamBytes);
+  add_crc((uint8_t *)d.c_str()); 
+
+  // Arruma o tamanho dps de calcular o crc
+  add_tam(tamBytes * 2);
 }
 
 void frame::imprime_bin()
@@ -174,6 +192,15 @@ void frame::imprime(int base)
     case HEX: imprime_hex(); break;
     default:  imprime_dec(); break;
   }
+}
+
+int frame::deconv_dado()
+{
+  char *dadoDeConv = deconv((uint8_t *)dado, tam);
+  strcpy(dado, dadoDeConv);
+  add_tam(tam/2);
+
+  return chk_crc8();
 }
 
 #endif
