@@ -125,12 +125,12 @@ public:
     return f.get_tipo();
   };
 
-  int reconstroi_arquivo(string nomeArquivo) {
+  int reconstroi_arquivo(string nomeArquivo, vector<frame *> framesFile) {
     cout << "------------Reconstroi arquivo------------------\n";
-    cout << "Tamanho do vetor: " << framesReceiving.size() << "\n";
+    cout << "Tamanho do vetor: " << framesFile.size() << "\n";
     string fileData;
-    for (size_t i = 0; i < framesReceiving.size() - 1; i++) {
-      fileData += string(framesReceiving[i].get_dado(), 63);
+    for (size_t i = 0; i < framesFile.size() - 1; i++) {
+      fileData += string(framesFile[i]->get_dado(), 63);
     }
     cout << "Tamanho do arquivo: " << fileData.size() << "\n";
     ofstream file;
@@ -138,12 +138,17 @@ public:
     file << fileData;
     file.close();
 
-    framesReceiving.clear();
+    framesFile.clear();
 
     return 0;
   };
-
-  frame *receive_frame() {
+  /**
+   * @brief Recebe um frame
+   * 
+   * @param ack  se deve enviar um ack
+   * @return frame* 
+   */
+  frame *receive_frame(bool sendAck = true) {
     char buffer[sizeof(frame)];
     memset(buffer, 0, sizeof(buffer));
 
@@ -152,22 +157,26 @@ public:
     if (byteRecv <= 0) {
       printf("Erro no recvfrom %d\n", byteRecv);
       return NULL;
-    }
+     }
     frame *f = new frame;
     memcpy(f, buffer, sizeof(frame));
     cout << "--------------------------------------------\n";
     cout << "Recebido Frame: " << buffer << "\n";
     cout << "Frame:--------------------------------------------\n";
     f->imprime(DEC);
-
+    if (f->get_tipo() == ACK) {
+      cout << "Recebido um ACK: " << f->get_dado() << "\n";
+      return f;
+    }
     // send ack
+    if (!sendAck)
+      return f;
     cout << "Enviando ACK ---------------\n";
     frame ack;
     ack.set_tipo(ACK);
     ack.set_seq(f->get_seq());
     ack.set_dado(f->get_dado());
-    char bufferSend[sizeof(frame)];
-    memcpy(bufferSend, &ack, sizeof(frame));
+    send_frame(ack, false);
     cout << "Frame ACK:--------------------------------------------\n";
     ack.imprime(DEC);
     int byteSend = send(soquete, bufferSend, sizeof(frame), 0);
@@ -178,7 +187,7 @@ public:
     return f;
   };
 
-  int send_frame(frame f) {
+  int send_frame(frame f, bool stopAndWait = true) {
     int byteSend;
     char buffer[sizeof(frame)];
     memcpy(buffer, &f, sizeof(frame));
@@ -186,32 +195,47 @@ public:
     bool ack = false;
     int timeout = 0;
 
+    cout << "--------------------------------------------\n";
+    cout << "Enviando frame: " << buffer << "\n";
+    f.imprime(DEC);
+
+    byteSend = send(soquete, buffer, sizeof(frame), 0);
+    if (byteSend < 0) {
+      cout << "Erro no sendto" << byteSend << "\n";
+    }
+    if (!stopAndWait)
+      return byteSend;
     // put and while for stop and wait with timeout
     while (!ack && timeout <= 10) {
-      cout << "--------------------------------------------\n";
-      cout << "Enviando frame: " << buffer << "\n";
-      f.imprime(DEC);
-
-      byteSend = send(soquete, buffer, sizeof(frame), 0);
-      if (byteSend < 0) {
-        cout << "Erro no sendto" << byteSend << "\n";
-        continue;
-      }
       // wait for ack
-      frame *recvFrame = receive_frame();
+      frame *recvFrame = receive_frame(false);
       if (recvFrame == NULL) {
         cout << "Erro ao receber o ACK\n";
         continue;
       }
+      cout << "--------------------------------------------\n";
+      cout << "recvFrame:" << "\n";
+      recvFrame->imprime(DEC);
+      cout << "f frame:" << "\n";
+      f.imprime(DEC);
+
       if (recvFrame->get_tipo() == ACK && recvFrame->get_seq() == f.get_seq() &&
           strcmp(recvFrame->get_dado(), f.get_dado()) == 0) {
         cout << "ACK recebido\n";
         recvFrame->imprime(DEC);
         ack = true;
+
         return byteSend;
       }
       cout << "ACK não recebido\n";
-      cout << "-------------- Reenviando frame --------------\n";
+      cout << "recvFrame - Tipo: " << recvFrame->get_tipo() << "\n";
+      cout << "recvFrame - Seq: " << recvFrame->get_seq() << "\n";
+      cout << "recvFrame - Dado: " << recvFrame->get_dado() << "\n";
+      cout << "--------------------------------------------\n";
+      cout << "frameAck:" << "\n";
+      recvFrame->imprime(DEC);
+
+      cout << "-------------- esperando ACK --------------\n";
       timeout++;
       sleep(timeoutValues[timeout]);
     }
@@ -230,6 +254,8 @@ public:
     f.set_seq(0);
     f.set_dado("INI");
     memcpy(buffer, &f, sizeof(frame));
+    send_frame(f);
+    
     cout << "--------------------------------------------\n";
     cout << "Enviando INI: " << buffer << "\n";
     cout << "Frame: -----------------------------------------\n";
@@ -237,41 +263,43 @@ public:
 
     int i = 0;
     for (i = 0; i < frames.size(); i++) {
-      memset(buffer, 0, sizeof(buffer));
-      memcpy(buffer, &frames[i], sizeof(frame));
+      send_frame(frames[i]);
+      // memset(buffer, 0, sizeof(buffer));
+      // memcpy(buffer, &frames[i], sizeof(frame));
 
-      frame f;
-      memcpy(&f, buffer, sizeof(frame));
-      byteSend = send(soquete, buffer, sizeof(frame), 0);
-      if (byteSend < 0) {
-        printf("Erro no sendto %d\n", byteSend);
-      }
-      if (i <= 5) {
-        cout << "--------------------------------------------\n";
-        cout << "Enviando frame: " << i << "\n" << buffer << "\n";
-        cout << "Frame: -----------------------------------------\n";
-        f.imprime(DEC);
-      }
+      // frame f;
+      // memcpy(&f, buffer, sizeof(frame));
+      // byteSend = send(soquete, buffer, sizeof(frame), 0);
+      // if (byteSend < 0) {
+      //   printf("Erro no sendto %d\n", byteSend);
+      // }
+      // if (i <= 5) {
+      //   cout << "--------------------------------------------\n";
+      //   cout << "Enviando frame: " << i << "\n" << buffer << "\n";
+      //   cout << "Frame: -----------------------------------------\n";
+      //   f.imprime(DEC);
+      // }
     }
 
     cout << "--------------------------------------------\n";
     cout << "Enviado " << i << " frames\n";
     // send end of file
-    frame f;
-    f.set_tipo(FIMT);
-    f.set_seq(0);
-    f.set_dado("FIM");
-    memcpy(buffer, &f, sizeof(frame));
-    cout << "--------------------------------------------\n";
-    cout << "Enviando FIM: " << buffer << "\n";
-    cout << "Frame: -----------------------------------------\n";
-    f.imprime(DEC);
+    frame fim;
+    fim.set_tipo(FIMT);
+    fim.set_seq(0);
+    fim.set_dado("FIM");
+    byteSend = send_frame(fim);
+    // memcpy(buffer, &f, sizeof(frame));
+    // cout << "--------------------------------------------\n";
+    // cout << "Enviando FIM: " << buffer << "\n";
+    // cout << "Frame: -----------------------------------------\n";
+    // fim.imprime(DEC);
 
-    byteSend = send(soquete, buffer, sizeof(frame), 0);
-    if (byteSend < 0) {
-      printf("Erro no sendto FIMT %d\n", byteSend);
-      exit(-1);
-    }
+    // byteSend = send(soquete, buffer, sizeof(frame), 0);
+    // if (byteSend < 0) {
+    //   printf("Erro no sendto FIMT %d\n", byteSend);
+    //   exit(-1);
+    // }
 
     return byteSend;
   }
@@ -322,13 +350,13 @@ public:
       case MIDIA:
         return send_file(data);
         break;
-      case TEXTO:
-        return send_text(data);
-      case ACK:
-        return send_ack(data);
-      case ERRO:
-        return send_error(data);
-        break;
+      // case TEXTO:
+      //   return send_text(data);
+      // case ACK:
+      //   return send_ack(data);
+      // case ERRO:
+      //   return send_error(data);
+      //   break;
       default:
         break;
       }

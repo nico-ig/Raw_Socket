@@ -31,14 +31,20 @@ int main(int argc, char *argv[]) {
   string dataSend = "Hello World";
   cout << "server" << server.get_socket() << endl;
   int receiveds = 0;
+  vector<frame *> frames;
   while (true) {
     // server.send_data(dataSend, 12, 0x01);
-    receive = server.receive_frames(receiveds);
+
+    frame *f = new frame();
+    f = server.receive_frame();
+    if(f->get_tipo() == MIDIA)
+      frames.push_back(f);
+    
     receiveds++;
     // cout << "receive: " << receive << endl;
-    if (receive == FIMT) {
+    if (f->get_tipo() == FIMT) {
       cout << "------------------ FIMT ------------------\n";
-      server.reconstroi_arquivo("recebe_Arquivo");
+      server.reconstroi_arquivo("recebe_Arquivo", frames);
       break;
     }
     // reconstroi arquivo
