@@ -33,21 +33,39 @@ private:
   vector<frame> framesSending, framesReceiving;
   frame f1, f2;               // frame envio e recebimento
   char buffer[sizeof(frame)]; // buffer
-  char bufferSend[sizeof(frame)] = "Hello World ";
+  char bufferSend[sizeof(frame)];
   int sequence = -1;           // sequencia do último frame recebido
   struct sockaddr_ll endereco; // endereco do socket
   vector<int> timeoutValues = {1, 2, 4, 8, 16, 32, 64, 128, 256, 512};
   // ----- Funçoes ------ //
 
   int ConexaoRawSocket(char *device);
-  void send_frame(char *buffer, int size);    // envia um pacote
   void receive_frame(char *buffer, int size); // recebe um pacote
   void close_connection();                    // fecha a conexao
 public:
   // ------ Construtor ------ //
+  // int send_frame(frame *f); // envia um pacote
   conexao();
   conexao(char *device);
 
+  int send_frame(frame *f) {
+    int byteSend;
+    char buffer[sizeof(frame)];
+    memcpy(buffer, &f, sizeof(frame));
+
+    bool ack = false;
+    int timeout = 0;
+
+    cout << "--------------------------------------------\n";
+    cout << "Enviando frame: " << buffer << "\n";
+    f->imprime(DEC);
+
+    byteSend = send(soquete, buffer, sizeof(frame), 0);
+    if (byteSend < 0) {
+      cout << "Erro no sendto" << byteSend << "\n";
+    }
+      return byteSend;
+  };
   // ------ Funcoes ------ //
   // int get_socket();                               // retorna o socket
   // int send_data(char *buffer, int size, UC tipo); // envia dados
@@ -97,6 +115,8 @@ public:
     return byteSend;
   };
 
+  
+
   int receive_frames(int index) {
     char buffer[sizeof(frame)];
     memset(buffer, 0, sizeof(buffer));
@@ -142,11 +162,12 @@ public:
 
     return 0;
   };
+  
   /**
    * @brief Recebe um frame
-   * 
+   *
    * @param ack  se deve enviar um ack
-   * @return frame* 
+   * @return frame*
    */
   frame *receive_frame(bool sendAck = true) {
     char buffer[sizeof(frame)];
@@ -157,152 +178,85 @@ public:
     if (byteRecv <= 0) {
       printf("Erro no recvfrom %d\n", byteRecv);
       return NULL;
-     }
+    }
     frame *f = new frame;
     memcpy(f, buffer, sizeof(frame));
+  
     cout << "--------------------------------------------\n";
     cout << "Recebido Frame: " << buffer << "\n";
     cout << "Frame:--------------------------------------------\n";
+  
     f->imprime(DEC);
     if (f->get_tipo() == ACK) {
       cout << "Recebido um ACK: " << f->get_dado() << "\n";
       return f;
     }
-    // send ack
-    if (!sendAck)
-      return f;
-    cout << "Enviando ACK ---------------\n";
-    frame ack;
-    ack.set_tipo(ACK);
-    ack.set_seq(f->get_seq());
-    ack.set_dado(f->get_dado());
-    send_frame(ack, false);
-    cout << "Frame ACK:--------------------------------------------\n";
-    ack.imprime(DEC);
-    int byteSend = send(soquete, bufferSend, sizeof(frame), 0);
-    if (byteSend < 0) {
-      cout << "Erro ao mandar o ACK" << byteSend << "\n";
-    }
-
+  
     return f;
   };
 
-  int send_frame(frame f, bool stopAndWait = true) {
-    int byteSend;
-    char buffer[sizeof(frame)];
-    memcpy(buffer, &f, sizeof(frame));
+  
 
-    bool ack = false;
-    int timeout = 0;
+  // int send_frames(vector<frame> frames) {
+  //   int byteSend;
+  //   char buffer[sizeof(frame)];
+  //   cout << "Tamanho do vetor: " << frames.size() << "\n";
 
-    cout << "--------------------------------------------\n";
-    cout << "Enviando frame: " << buffer << "\n";
-    f.imprime(DEC);
+  //   // Send INI frame
+  //   frame f;
+  //   f.set_tipo(INIT);
+  //   f.set_seq(0);
+  //   f.set_dado("INI");
+  //   memcpy(buffer, &f, sizeof(frame));
+  //   send_frame(f);
 
-    byteSend = send(soquete, buffer, sizeof(frame), 0);
-    if (byteSend < 0) {
-      cout << "Erro no sendto" << byteSend << "\n";
-    }
-    if (!stopAndWait)
-      return byteSend;
-    // put and while for stop and wait with timeout
-    while (!ack && timeout <= 10) {
-      // wait for ack
-      frame *recvFrame = receive_frame(false);
-      if (recvFrame == NULL) {
-        cout << "Erro ao receber o ACK\n";
-        continue;
-      }
-      cout << "--------------------------------------------\n";
-      cout << "recvFrame:" << "\n";
-      recvFrame->imprime(DEC);
-      cout << "f frame:" << "\n";
-      f.imprime(DEC);
+  //   cout << "--------------------------------------------\n";
+  //   cout << "Enviando INI: " << buffer << "\n";
+  //   cout << "Frame: -----------------------------------------\n";
+  //   f.imprime(DEC);
 
-      if (recvFrame->get_tipo() == ACK && recvFrame->get_seq() == f.get_seq() &&
-          strcmp(recvFrame->get_dado(), f.get_dado()) == 0) {
-        cout << "ACK recebido\n";
-        recvFrame->imprime(DEC);
-        ack = true;
+  //   int i = 0;
+  //   for (i = 0; i < frames.size(); i++) {
+  //     send_frame(frames[i]);
+  //     // memset(buffer, 0, sizeof(buffer));
+  //     // memcpy(buffer, &frames[i], sizeof(frame));
 
-        return byteSend;
-      }
-      cout << "ACK não recebido\n";
-      cout << "recvFrame - Tipo: " << recvFrame->get_tipo() << "\n";
-      cout << "recvFrame - Seq: " << recvFrame->get_seq() << "\n";
-      cout << "recvFrame - Dado: " << recvFrame->get_dado() << "\n";
-      cout << "--------------------------------------------\n";
-      cout << "frameAck:" << "\n";
-      recvFrame->imprime(DEC);
+  //     // frame f;
+  //     // memcpy(&f, buffer, sizeof(frame));
+  //     // byteSend = send(soquete, buffer, sizeof(frame), 0);
+  //     // if (byteSend < 0) {
+  //     //   printf("Erro no sendto %d\n", byteSend);
+  //     // }
+  //     // if (i <= 5) {
+  //     //   cout << "--------------------------------------------\n";
+  //     //   cout << "Enviando frame: " << i << "\n" << buffer << "\n";
+  //     //   cout << "Frame: -----------------------------------------\n";
+  //     //   f.imprime(DEC);
+  //     // }
+  //   }
 
-      cout << "-------------- esperando ACK --------------\n";
-      timeout++;
-      sleep(timeoutValues[timeout]);
-    }
-      cout << "Conexão Perdida. Saindo...\n";
-      return -1;
-  };
+  //   cout << "--------------------------------------------\n";
+  //   cout << "Enviado " << i << " frames\n";
+  //   // send end of file
+  //   frame fim;
+  //   fim.set_tipo(FIMT);
+  //   fim.set_seq(0);
+  //   fim.set_dado("FIM");
+  //   byteSend = send_frame(fim);
+  //   // memcpy(buffer, &f, sizeof(frame));
+  //   // cout << "--------------------------------------------\n";
+  //   // cout << "Enviando FIM: " << buffer << "\n";
+  //   // cout << "Frame: -----------------------------------------\n";
+  //   // fim.imprime(DEC);
 
-  int send_frames(vector<frame> frames) {
-    int byteSend;
-    char buffer[sizeof(frame)];
-    cout << "Tamanho do vetor: " << frames.size() << "\n";
+  //   // byteSend = send(soquete, buffer, sizeof(frame), 0);
+  //   // if (byteSend < 0) {
+  //   //   printf("Erro no sendto FIMT %d\n", byteSend);
+  //   //   exit(-1);
+  //   // }
 
-    // Send INI frame
-    frame f;
-    f.set_tipo(INIT);
-    f.set_seq(0);
-    f.set_dado("INI");
-    memcpy(buffer, &f, sizeof(frame));
-    send_frame(f);
-    
-    cout << "--------------------------------------------\n";
-    cout << "Enviando INI: " << buffer << "\n";
-    cout << "Frame: -----------------------------------------\n";
-    f.imprime(DEC);
-
-    int i = 0;
-    for (i = 0; i < frames.size(); i++) {
-      send_frame(frames[i]);
-      // memset(buffer, 0, sizeof(buffer));
-      // memcpy(buffer, &frames[i], sizeof(frame));
-
-      // frame f;
-      // memcpy(&f, buffer, sizeof(frame));
-      // byteSend = send(soquete, buffer, sizeof(frame), 0);
-      // if (byteSend < 0) {
-      //   printf("Erro no sendto %d\n", byteSend);
-      // }
-      // if (i <= 5) {
-      //   cout << "--------------------------------------------\n";
-      //   cout << "Enviando frame: " << i << "\n" << buffer << "\n";
-      //   cout << "Frame: -----------------------------------------\n";
-      //   f.imprime(DEC);
-      // }
-    }
-
-    cout << "--------------------------------------------\n";
-    cout << "Enviado " << i << " frames\n";
-    // send end of file
-    frame fim;
-    fim.set_tipo(FIMT);
-    fim.set_seq(0);
-    fim.set_dado("FIM");
-    byteSend = send_frame(fim);
-    // memcpy(buffer, &f, sizeof(frame));
-    // cout << "--------------------------------------------\n";
-    // cout << "Enviando FIM: " << buffer << "\n";
-    // cout << "Frame: -----------------------------------------\n";
-    // fim.imprime(DEC);
-
-    // byteSend = send(soquete, buffer, sizeof(frame), 0);
-    // if (byteSend < 0) {
-    //   printf("Erro no sendto FIMT %d\n", byteSend);
-    //   exit(-1);
-    // }
-
-    return byteSend;
-  }
+  //   return byteSend;
+  // }
 
   /**
    * @brief Split the selected file into chunks of 63 bytes and send them
@@ -311,14 +265,14 @@ public:
    * @param location: file location
    * @return int
    */
-  int send_file(string location) {
+  vector<frame> send_file(string location) {
     cout << "Location: " << location.c_str() << "\n";
     ifstream file;
     file.open(location.c_str(), ios::binary);
 
     if (!file) {
       cout << "Erro ao abrir o arquivo1\n";
-      return 0;
+      return vector<frame>();
     }
 
     // --- read file and split into chunks of 63 bytes --- //
@@ -341,14 +295,14 @@ public:
     }
 
     // --- send frames --- //
-    return send_frames(framesSending);
+    return framesSending;
   };
 
   int send_message(string data, int size, UC tipo) {
     switch (tipo) {
       {
       case MIDIA:
-        return send_file(data);
+        return 1;
         break;
       // case TEXTO:
       //   return send_text(data);
@@ -444,7 +398,6 @@ conexao::conexao(char *device) { soquete = ConexaoRawSocket(device); }
 // int main(int argc, char *argv[]) {
 //   int soquete;
 //   char buffer[1024];
-//   char bufferSend[1024] = "Hello World ";
 //   // void *__restrict__ __buffer2;
 //   // struct sockaddr_ll endereco;
 //   // socklen_t tamanho = sizeof(endereco);

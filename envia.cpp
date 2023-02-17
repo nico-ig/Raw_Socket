@@ -24,16 +24,59 @@ using namespace std;
 
 int main(int argc, char *argv[]) {
   gen_crc8_table();
-  conexao server("lo");
+  conexao envia("lo");
+  conexao recebe("lo2");
   string dataReceive;
   int receive = 0;
   string dataSend = "Hel";
-  cout << "server" << server.get_socket() << endl;
+  cout << "envia" << envia.get_socket() << endl;
   // while (true) {
   // server.send_data(dataSend, dataSend.size(), 0x01);
   // std::string const HOME = std::getenv("HOME") ? std::getenv("HOME") : ".";
   // std::string const FILENAME = "envia.cpp";
-  server.send_file("./foto.jpg");
+  // vector<frame> fileFrames = envia.send_file("./foto.jpg");
+
+  // send file frames
+  //  for (int i = 0; i < fileFrames.size(); i++) {
+  //    fileFrames[i].imprime(DEC);
+  //    int frameSend = envia.send_frame(&fileFrames[i]);
+  //    cout << "frameSend: " << frameSend << endl;
+  //    frame *f = recebe.receive_frame(false);
+  //    if (f->get_tipo() == ACK) {
+  //      cout << "ACK" << endl;
+  //    }
+  //  }
+
+  // send hello world
+  frame *f = new frame();
+  f->set_tipo(TEXTO);
+  f->set_dado("Hello World");
+  f->set_seq(0);
+  f->imprime(DEC);
+  int frameSend = envia.send_frame(f);
+  cout << "frameSend: " << frameSend << endl;
+
+  bool ack = false;
+  int timeSend = time(NULL);
+  int timeout = 0;
+  while (!ack && timeout < 5 && time(NULL) - timeSend <= 10) {
+    frame *f2 = recebe.receive_frame(false);
+    if (f2->get_tipo() == ACK) {
+      cout << "------------------ ACK ------------------\n" << endl;
+      f2->imprime(DEC);
+      cout << "ACK" << endl;
+      ack = true;
+    }
+    if (time(NULL) - timeSend >= 10)
+      timeout++;
+  }
+
+  // frame *f2 = recebe.receive_frame(false);
+  // if (f2->get_tipo() == ACK) {
+  //   cout << "ACK" << endl;
+  // }
+  // // cout << "server" << connection.get_socket() << endl;
+
   cout << "Enviado" << endl;
   // receive = server.receive_data(dataReceive, 1024);
   // cout << "receive: " << receive << endl;
