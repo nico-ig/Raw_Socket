@@ -24,12 +24,12 @@ using namespace std;
 
 int main(int argc, char *argv[]) {
   gen_crc8_table();
-  conexao envia("lo");
-  conexao recebe("lo2");
+  conexao local("lo1");
+  conexao target("lo");
   string dataReceive;
   int receive = 0;
   string dataSend = "Hel";
-  cout << "envia" << envia.get_socket() << endl;
+  cout << "envia" << target.get_socket() << endl;
   // while (true) {
   // server.send_data(dataSend, dataSend.size(), 0x01);
   // std::string const HOME = std::getenv("HOME") ? std::getenv("HOME") : ".";
@@ -53,14 +53,14 @@ int main(int argc, char *argv[]) {
   f->set_dado("Hello World");
   f->set_seq(0);
   f->imprime(DEC);
-  int frameSend = envia.send_frame(f);
+  int frameSend = target.send_frame(f);
   cout << "frameSend: " << frameSend << endl;
 
   bool ack = false;
   int timeSend = time(NULL);
   int timeout = 0;
   while (!ack && timeout < 5 && time(NULL) - timeSend <= 10) {
-    frame *f2 = recebe.receive_frame(false);
+    frame *f2 = local.receive_frame(false);
     if (f2->get_tipo() == ACK) {
       cout << "------------------ ACK ------------------\n" << endl;
       f2->imprime(DEC);

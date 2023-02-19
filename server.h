@@ -32,10 +32,11 @@ class server {
 private:
   int soquete;
   vector<frame *> framesMidia;
-  conexao *connection;
+  conexao *local;
+  conexao *target;
 
 public:
-  server(char *ip);
+  server(conexao *local, conexao *target);
   // ~server();
   void run();
 };
@@ -46,30 +47,28 @@ void server::run() {
   while (true) {
     frame fReceive;
     cout << "Recebendo frame ---------------\n";
-    fReceive = * connection->receive_frame(true);
+
+    /*-- listening local ip and wainting for messages --*/
+    fReceive = *local->receive_frame(true);
     fReceive.imprime(DEC);
 
+    /*-- sending ack to target  --*/
     frame *ack = new frame();
     ack->set_tipo(ACK);
     ack->set_dado(fReceive.get_dado());
     ack->set_seq(fReceive.get_seq());
     cout << "Enviando ACK ---------------\n";
-    sendack:
+  sendack:
     int ackSent = 0;
-    ackSent =  connection->send_frame(ack);
+    ackSent = target->send_frame(ack);
     cout << "ACK enviado: " << ackSent << endl;
-    
-    
-    if(!ackSent)
-      goto sendack;
-
-
-      
     // reconstroi arquivoY
   }
 }
 
-server::server(char *ip) { connection = new conexao(ip); }
+server::server(conexao *localConnection, conexao *targetConnection) {
+  local = localConnection;
+  target = targetConnection;
+}
 
 #endif
-         

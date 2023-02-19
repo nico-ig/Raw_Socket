@@ -58,7 +58,7 @@ public:
 
     cout << "--------------------------------------------\n";
     cout << "Enviando frame: " << buffer << "\n";
-    f->imprime(DEC);
+    f->imprime(DEC); 
 
     byteSend = send(soquete, buffer, sizeof(frame), 0);
     if (byteSend < 0) {
@@ -72,7 +72,7 @@ public:
   // int receive_data(char *buffer, int size);       // recebe dados
   // void close_conexao();                           // fecha a conexao
 
-  int get_socket() { return soquete; }
+  int get_socket() { return soquete; };
 
   int send_data(string data, int size, UC tipo) {
     int byteSend;
@@ -353,7 +353,7 @@ int conexao::ConexaoRawSocket(char *device) {
     printf("Erro no Socket\n");
     exit(-1);
   }
-
+    
   memset(&ir, 0, sizeof(struct ifreq)); /*dispositivo eth0*/
   memcpy(ir.ifr_name, device, sizeof(device));
   if (ioctl(soquete, SIOCGIFINDEX, &ir) == -1) {
@@ -373,10 +373,14 @@ int conexao::ConexaoRawSocket(char *device) {
   memset(&mr, 0, sizeof(mr)); /*Modo Promiscuo*/
   mr.mr_ifindex = ir.ifr_ifindex;
   mr.mr_type = PACKET_MR_PROMISC;
-  if (setsockopt(soquete, SOL_PACKET, PACKET_ADD_MEMBERSHIP, &mr, sizeof(mr)) ==
-      -1) {
+  if((setsockopt(soquete, SOL_PACKET, PACKET_ADD_MEMBERSHIP, &mr, sizeof(mr))  < 0))
+  {
     printf("Erro ao fazer setsockopt\n");
     exit(-1);
+  }
+  if (ioctl(soquete, SIOCGIFINDEX, &ir) == -1) {
+    perror("ioctl error");
+    return -1;
   }
 
   return soquete;

@@ -26,16 +26,22 @@ using namespace std;
 int main(int argc, char *argv[]) {
   gen_crc8_table();
 
-  conexao connection("lo");
-  server servidor("lo1");
+  conexao local("lo");
+  conexao target("lo1");
+  // thread serverReceive(&server::run, &servidor);
+  server servidor(&local, &target);
   thread serverReceive(&server::run, &servidor);
-  serverReceive.join();
   string dataReceive;
   int receive = 0;
+  while (true)
+  {
+    receive++;
+  }
+  serverReceive.join();
   // cout << "server" << connection.get_socket() << endl;
   // int receiveds = 0;
   // vector<frame *> frames;
-  
+
   // while (true) {
 
   //   frame *f = new frame();
