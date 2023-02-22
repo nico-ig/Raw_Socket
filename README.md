@@ -1,4 +1,4 @@
-# Como utilizar a bibliota
+# Como utilizar a bibliota de FRAMES
 
 O frame pode ser inicializado direto e depois adicionando os dados(1) 
 ou passando como parametro o tipo, a sequencia e uma string de dado (2)
