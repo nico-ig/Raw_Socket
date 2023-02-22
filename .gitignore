@@ -1,7 +1,7 @@
 .vscode
+*.o
+a.out
 msg
-*.o
+lixo
+frame
 exemplo
-*.o
-vgcore*
-*.log
