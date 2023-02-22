@@ -15,6 +15,7 @@
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <mutex>
 
 #include <arpa/inet.h>
 
@@ -22,9 +23,6 @@
 #include "conexao.h"
 #include "crc8.h"
 #include "frame.h"
-#include <mutex>
-
-std::mutex mtx;
 
 vector<string> CMD_HELP = {"H",  "help",  "-h",    "HELP", "Help",
                            "-H", "ajuda", "Ajuda", "AJUDA"};
@@ -50,8 +48,11 @@ private:
   void send_file();
   void send_text(string message);
   bool string_has(string str, vector<string> strList);
-  char *string_cmd(string str);
+  char string_cmd(string str);
   void print_help();
+  bool verify_ack(frame *received, frame *sent);
+  vector<frame*> create_frames(string data, int type);
+  string add_escapes(string data);
 
 public:
   // --------- Dados ---------- //
@@ -75,37 +76,56 @@ public:
 int client::send_frames(vector<frame *> frames) {
 
   vector<int> timeouts = {1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024};
-  int timeout = 0;
   bool ack = false;
 
   // Envia um frame por vez
   for (size_t i = 0; i < frames.size(); i++) {
 
+    int timeout = 0;
     // Fica tentando enviar o frame até receber o ack
-    while (!ack || timeout < 10) {
+    while (!ack || timeout < timeouts.size()) {
 
       /*send frame*/
       target->send_frame(frames[i]);
 
       /*wait for ack*/
       frame *f = local->receive_frame();
-      ack = local->verify_ack(f, frames[i]);
+      ack = verify_ack(f, frames[i]);
 
       if (!ack)
+      {
+        sleep(timeouts[timeout]);
         timeout++;
+      }
 
       else
         timeout = 0;
-      sleep(timeouts[timeout]);
     }
 
     // Se tentar 10 vezes e nao conseguir, desiste de enviar
-    if ( timeout == 10 )
+    if ( timeout == timeouts.size() )
       return 0;
   }
 
   return 1;
 }
+
+/**
+ * @brief verify if the received frame is an ACK and if it is the same as the sent frame
+ * 
+ * @param received 
+ * @param sent 
+ * @return true 
+ * @return false 
+ */
+bool client::verify_ack(frame *received, frame *sent) {
+
+  return (received->get_tipo() == ACK              &&
+          received->get_seq() == sent->get_seq()   &&
+          received->get_dado() == sent->get_dado() &&
+          received->chk_crc8());
+}
+
 
 /**
  * @brief Send data through the socket
@@ -117,7 +137,7 @@ int client::send_message(string data, int type) {
 
   int messageSize = data.size();
   vector<frame *> frames;
-  frames = target->create_frames(data);
+  frames = create_frames(data, type);
 
   return send_frames(frames);
 }
@@ -148,14 +168,72 @@ void client::send_text(string message) {
 
   cout << "Enviando mensagem\n";
 
-  if ( !send_message(fileName, MIDIA) ) 
+  if ( !send_message(message, TEXTO) ) 
     cout << "Limite de timout, mensagem nao foi enviada\n";
   
   else                                  
     cout << "Mensagem enviada com sucesso\n";
 }
 
+/**
+ * @brief Creates a vector with all the frames to be sent
+ *
+ * @param message
+*/
+
+vector<frame*> client::create_frames(string data, int type) {
+  vector<frame*> frames;
+  int i = 0;
+  string message = add_escapes(data);
+
+  while (i < message.size()) {
+    frame *f = new frame();
+    f->set_tipo(type);
+    f->set_seq(i);
+    f->set_dado(message.substr(i, 63));
+    frames.push_back(f);
+    i += 63;
+  }
+
+  return frames;
+}
+
+/*-- Não são os escapes certos, só queria deixar pronto essa parte para
+   botar os escapes certos--*/
+/**
+ * @brief Add escape characters to the data to be sent
+ *
+ * @param data
+ * @return string
+ */
+string client::add_escapes(string data) {
+
+  string message = "";
+  for (size_t i = 0; i < data.size(); i++) {
+
+    switch (data[i]){
+
+      case 0x7E:
+        message += 0x7D;
+        message += 0x5E;
+        break;
+
+      case 0x7D:
+        message += 0x7D;
+        message += 0x5D;
+        break;
+
+      default:
+        message += data[i];
+        break;
+    }
+  }
+
+  return message;
+}
+
 bool client::string_has(string str, vector<string> strList) {
+
   for (int i = 0; i < strList.size(); i++) {
     if (str.find(strList[i]) != string::npos) {
       return true;
@@ -165,17 +243,17 @@ bool client::string_has(string str, vector<string> strList) {
   return false;
 }
 
-char *client::string_cmd(string str) {
+char client::string_cmd(string str) {
   if (string_has(str, CMD_HELP))
-    return "h";
+    return 'h';
 
   if (string_has(str, CMD_EXIT))
-    return "e";
+    return 'e';
 
   if (string_has(str, CMD_SEND))
-    return "s";
+    return 's';
 
-  return "m";
+  return 'm';
 }
 
 void client::print_help() {
@@ -207,30 +285,30 @@ void client::run() {
     cout << " Digite um comando ou mensagem:\n";
 
     getline(cin, userInput);
-    char *userInputCMD = string_cmd(userInput);
+    char userInputCMD = string_cmd(userInput);
 
-    switch (*userInputCMD) {
-    case 'h':
-      print_help();
-      break;
-      
-    case 'e':
-      cout << "Saindo...\n";
-      exit(0);
-      break;
+    switch (userInputCMD) {
+      case 'h':
+        print_help();
+        break;
+        
+      case 'e':
+        cout << "Saindo...\n";
+        exit(0);
+        break;
 
-    case 's':
-      send_file();
-      break;
+      case 's':
+        send_file();
+        break;
 
-    case 'm':
-      cout << "Enviando mensagem\n";
-      send_text(userInput);
-      break;
+      case 'm':
+        cout << "Enviando mensagem\n";
+        send_text(userInput);
+        break;
 
-    default:
-      cout << "Comando invalido\n";
-      break;
+      default:
+        cout << "Comando invalido\n";
+        break;
     }
   }
 }
