@@ -52,23 +52,22 @@ int main(int argc, char *argv[]) {
   f->set_tipo(TEXTO);
   f->set_dado("Hello World");
   f->set_seq(0);
-  f->imprime(DEC);
+  f->add_crc(f->get_dado());
   int frameSend = target.send_frame(f);
-  cout << "frameSend: " << frameSend << endl;
 
   bool ack = false;
   int timeSend = time(NULL);
   int timeout = 0;
-  while (!ack && timeout < 5 && time(NULL) - timeSend <= 10) {
+  int timeouts[] = {2, 4, 8, 16, 32};
+  while (!ack && timeout < 5 && time(NULL)) {
     frame *f2 = local.receive_frame(false);
     if (f2->get_tipo() == ACK) {
       cout << "------------------ ACK ------------------\n" << endl;
       f2->imprime(DEC);
       cout << "ACK" << endl;
       ack = true;
-    }
-    if (time(NULL) - timeSend >= 10)
-      timeout++;
+    } else
+      sleep(timeouts[timeout]);
   }
 
   // frame *f2 = recebe.receive_frame(false);
@@ -76,7 +75,7 @@ int main(int argc, char *argv[]) {
   //   cout << "ACK" << endl;
   // }
   // // cout << "server" << connection.get_socket() << endl;
-
+ 
   cout << "Enviado" << endl;
   // receive = server.receive_data(dataReceive, 1024);
   // cout << "receive: " << receive << endl;

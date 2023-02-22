@@ -33,8 +33,7 @@ int main(int argc, char *argv[]) {
   thread serverReceive(&server::run, &servidor);
   string dataReceive;
   int receive = 0;
-  while (true)
-  {
+  while (true){
     receive++;
   }
   serverReceive.join();
