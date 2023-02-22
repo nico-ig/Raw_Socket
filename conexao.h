@@ -28,7 +28,6 @@ using namespace std;
 class conexao {
 private:
   // ------ Dados ------ //
-
   int soquete;
   int device;
   int local, target; // local and target ip address
@@ -39,11 +38,12 @@ private:
   int sequence = -1;           // sequencia do último frame recebido
   struct sockaddr_ll endereco; // endereco do socket
   vector<int> timeoutValues = {1, 2, 4, 8, 16, 32, 64, 128, 256, 512};
+  
   // ----- Funçoes ------ //
-
   int ConexaoRawSocket(char *device);
   void receive_frame(char *buffer, int size); // recebe um pacote
   void close_connection();                    // fecha a conexao
+                                              
 public:
   // ------ Construtor ------ //
   conexao(char *deviceIP);
@@ -79,6 +79,7 @@ public:
     }
     return byteSend;
   };
+
   // ------ Funcoes ------ //
   // int get_socket();                               // retorna o socket
   // int send_data(char *buffer, int size, UC tipo); // envia dados
@@ -91,9 +92,11 @@ public:
     cout << "------------Reconstroi arquivo------------------\n";
     cout << "Tamanho do vetor: " << framesFile.size() << "\n";
     string fileData;
+
     for (size_t i = 0; i < framesFile.size() - 1; i++) {
       fileData += string(framesFile[i]->get_dado(), 63);
     }
+
     cout << "Tamanho do arquivo: " << fileData.size() << "\n";
     ofstream file;
     file.open("./" + nomeArquivo, ios::binary);
@@ -120,6 +123,7 @@ public:
       printf("Erro no recvfrom %d\n", byteRecv);
       return NULL;
     }
+
     frame *f = new frame;
     memcpy(f, buffer, sizeof(frame));
 
@@ -129,6 +133,7 @@ public:
     cout << "Frame:--------------------------------------------\n";
     cout << "binário: ";
     f->imprime(DEC);
+
     if (f->get_tipo() == ACK) {
       cout << "Recebido um ACK: " << f->get_dado() << "\n";
       return f;

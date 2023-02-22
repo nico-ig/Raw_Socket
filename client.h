@@ -23,6 +23,7 @@
 #include "crc8.h"
 #include "frame.h"
 #include <mutex>
+
 std::mutex mtx;
 
 vector<string> CMD_HELP = {"H",  "help",  "-h",    "HELP", "Help",
@@ -37,42 +38,33 @@ using namespace std;
 class client {
 
 private:
-  int soquete;
-  void send_file();
-  void send_text(string message);
-
-  int send_frames(vector<frame *> frames);
-  int send_message(string data, int type);
-
+  // --------- Dados ---------- //
+  int  soquete;
   vector<frame *> framesMidia;
   conexao *local;
   conexao *target;
 
+  // ---------- Funcoes -------- //
+  int  send_frames(vector<frame *> frames);
+  int  send_message(string data, int type);
+  void send_file();
+  void send_text(string message);
+  bool string_has(string str, vector<string> strList);
+  char *string_cmd(string str);
+  void print_help();
+
 public:
-  client(conexao *local, conexao *target);
+  // --------- Dados ---------- //
   string userInput;
-  // ~server();
+
+  // ------- Construtores ------ //
+  client(conexao *local, conexao *target);
+  
+  // ---------- Funcoes -------- //
   void run();
 };
 
-bool string_has(string str, vector<string> strList) {
-  for (int i = 0; i < strList.size(); i++) {
-    if (str.find(strList[i]) != string::npos) {
-      return true;
-    }
-  }
-  return false;
-}
-
-char *string_cmd(string str) {
-  if (string_has(str, CMD_HELP))
-    return "h";
-  if (string_has(str, CMD_EXIT))
-    return "e";
-  if (string_has(str, CMD_SEND))
-    return "s";
-  return "m";
-}
+// ------------------------------ PRIVATE --------------------------------- //
 
 /**
  * @brief Send a list of frames through the socket
@@ -81,25 +73,38 @@ char *string_cmd(string str) {
  * @return int
  */
 int client::send_frames(vector<frame *> frames) {
+
   vector<int> timeouts = {1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024};
   int timeout = 0;
   bool ack = false;
+
+  // Envia um frame por vez
   for (size_t i = 0; i < frames.size(); i++) {
+
+    // Fica tentando enviar o frame até receber o ack
     while (!ack || timeout < 10) {
-      /* code */
+
       /*send frame*/
       target->send_frame(frames[i]);
+
       /*wait for ack*/
       frame *f = local->receive_frame();
       ack = local->verify_ack(f, frames[i]);
 
       if (!ack)
         timeout++;
+
       else
         timeout = 0;
       sleep(timeouts[timeout]);
     }
+
+    // Se tentar 10 vezes e nao conseguir, desiste de enviar
+    if ( timeout == 10 )
+      return 0;
   }
+
+  return 1;
 }
 
 /**
@@ -109,11 +114,13 @@ int client::send_frames(vector<frame *> frames) {
  * @return int
  */
 int client::send_message(string data, int type) {
+
   int messageSize = data.size();
   vector<frame *> frames;
   frames = target->create_frames(data);
+
   return send_frames(frames);
-};
+}
 
 /**
  * @brief Send a file through the socket
@@ -124,7 +131,12 @@ void client::send_file() {
   string fileName;
   cout << "Digite o nome do arquivo:\n";
   getline(cin, fileName);
-  send_message(fileName, MIDIA);
+
+  if ( !send_message(fileName, MIDIA) ) 
+    cout << "Limite de timout, arquivo nao foi enviado\n";
+  
+  else                                  
+    cout << "Arquivo enviado com sucesso\n";
 }
 
 /**
@@ -133,46 +145,49 @@ void client::send_file() {
  * @param message
  */
 void client::send_text(string message) {
-  cout << "Enviando mensagem\n";
-  send_message(message, TEXTO);
-};
 
-void print_help() {
+  cout << "Enviando mensagem\n";
+
+  if ( !send_message(fileName, MIDIA) ) 
+    cout << "Limite de timout, mensagem nao foi enviada\n";
+  
+  else                                  
+    cout << "Mensagem enviada com sucesso\n";
+}
+
+bool client::string_has(string str, vector<string> strList) {
+  for (int i = 0; i < strList.size(); i++) {
+    if (str.find(strList[i]) != string::npos) {
+      return true;
+    }
+  }
+    
+  return false;
+}
+
+char *client::string_cmd(string str) {
+  if (string_has(str, CMD_HELP))
+    return "h";
+
+  if (string_has(str, CMD_EXIT))
+    return "e";
+
+  if (string_has(str, CMD_SEND))
+    return "s";
+
+  return "m";
+}
+
+void client::print_help() {
   cout << "Comandos disponiveis:\n";
   cout << "help ou -h ou h ou HELP ou Help ou H ou ajuda ou Ajuda ou AJUDA\n";
   cout << "exit ou -e ou e ou EXIT ou Exit ou E ou sair ou Sair ou SAIR\n";
   cout
       << "send ou -s ou s ou SEND ou Send ou S ou enviar ou Enviar ou ENVIAR\n";
   cout << "para enviar uma mensagem, digite a mensagem e pressione enter\n";
-};
-void client::run() {
-  // lock the thread with mutex
-  int i;
-  while (true) {
-    cout << " Digite um comando ou mensagem:\n";
-    getline(cin, userInput);
-    char *userInputCMD = string_cmd(userInput);
-    switch (*userInputCMD) {
-    case 'h':
-      print_help();
-      break;
-    case 'e':
-      cout << "Saindo...\n";
-      exit(0);
-      break;
-    case 's':
-      send_file();
-      break;
-    case 'm':
-      cout << "Enviando mensagem\n";
-      send_text(userInput);
-      break;
-    default:
-      cout << "Comando invalido\n";
-      break;
-    }
-  }
 }
+
+// ------------------------------- PUBLIC --------------------------------- //
 
 /**
  * @brief Construct a new client::client object
@@ -183,6 +198,41 @@ void client::run() {
 client::client(conexao *localConnection, conexao *targetConnection) {
   local = localConnection;
   target = targetConnection;
+}
+
+// lock the thread with mutex
+void client::run() {
+  int i;
+  while (true) {
+    cout << " Digite um comando ou mensagem:\n";
+
+    getline(cin, userInput);
+    char *userInputCMD = string_cmd(userInput);
+
+    switch (*userInputCMD) {
+    case 'h':
+      print_help();
+      break;
+      
+    case 'e':
+      cout << "Saindo...\n";
+      exit(0);
+      break;
+
+    case 's':
+      send_file();
+      break;
+
+    case 'm':
+      cout << "Enviando mensagem\n";
+      send_text(userInput);
+      break;
+
+    default:
+      cout << "Comando invalido\n";
+      break;
+    }
+  }
 }
 
 #endif

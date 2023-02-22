@@ -12,7 +12,6 @@
 #include <thread>
 
 // include local
-// include local
 #include "conexao.h"
 #include "crc8.cpp"
 #include "crc8.h"
@@ -20,6 +19,7 @@
 #include "macros.h"
 #include "server.h"
 #include "client.h"
+
 using namespace std;
 
 #define HEX "%02x"
@@ -29,63 +29,23 @@ int main(int argc, char *argv[]) {
 
   conexao local("lo");
   conexao target("lo1");
-  // thread serverReceive(&server::run, &servidor);
+
   server servidor(&local, &target);
   thread serverReceive(&server::run, &servidor);
 
-    client cliente(&local, &target);
-    thread clientSend(&client::run, &cliente);
-    string dataSend;
+  client cliente(&local, &target);
+  thread clientSend(&client::run, &cliente);
+  string dataSend;
   string dataReceive;
+  
   int receive = 0;
   while (true) {
     receive++;
   }
+
   serverReceive.join();
-    clientSend.join();
-  // cout << "server" << connection.get_socket() << endl;
-  // int receiveds = 0;
-  // vector<frame *> frames;
-
-  // while (true) {
-
-  //   frame *f = new frame();
-  //   f = connection.receive_frame(true);
-  //   if (f->get_tipo() == MIDIA)
-  //     frames.push_back(f);
-
-  //   receiveds++;
-  //   // cout << "receive: " << receive << endl;
-  //   if (f->get_tipo() == FIMT) {
-  //     cout << "------------------ FIMT ------------------\n";
-  //     connection.reconstroi_arquivo("recebe_Arquivo", frames);
-  //     break;
-  //   }
-  //   // reconstroi arquivo
-  // }
+  clientSend.join();
 
   return 0;
 }
 
-/*
- // send ack
-    if (!sendAck)
-      return f;
-
-    cout << "Enviando ACK ---------------\n";
-    frame ack;
-    ack.set_tipo(ACK);
-    ack.set_seq(f->get_seq());
-    ack.set_dado(f->get_dado());
-    send_frame(ack, false);
-    cout << "Frame ACK:--------------------------------------------\n";
-    ack.imprime(DEC);
-    int byteSend = send(soquete, bufferSend, sizeof(frame), 0);
-    sleep(1);
-    if (byteSend < 0) {
-      cout << "Erro ao mandar o ACK" << byteSend << "\n";
-    }
-
-
-
-*/
