@@ -1,6 +1,10 @@
 .vscode
-msg
 *.o
+a.out
+msg
+lixo
+frame
+exemplo
 exemplo
 *.o
 vgcore*

@@ -1,0 +1,43 @@
+-> Conferir se n ficou nenhuma funcao faltando
+
+-> Arrumar a interface
+
+-> Organizar header/src diretorios
+
+-> Merge frame
+  -> Defines
+
+-> Defines (frame?)
+
+-> Ver se os frames que estao vindo sao arquivos e juntar eles no arquivo
+
+-> Ver o send_frames
+
+-> Juntar todos os frames num so para mensagens de mais de dois frames
+
+-> Fazer o close_connection
+
+-> Testar tamanho antes de enviar o arquivo
+
+-> Arrumar escape
+
+-> Testar
+
+-> Timeout
+
+-> Merge log
+
+-> Merge correcao de erro
+  -> Enviar arquivo correcao de erros
+  -> Readme
+  -> Demonstracao
+
+-> Testar perca de conexao
+
+//-> Janela deslizante
+//  -> Demonstracao
+
+-> Adicionar coisas no log
+
+-> Relatorio
+
