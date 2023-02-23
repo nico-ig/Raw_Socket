@@ -7,6 +7,7 @@
 #include <iostream>
 #include <linux/if.h>
 #include <linux/if_packet.h>
+#include <mutex>
 #include <net/ethernet.h>
 #include <netinet/in.h>
 #include <stdio.h>
@@ -15,7 +16,6 @@
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/types.h>
-#include <mutex>
 
 #include <arpa/inet.h>
 
@@ -37,21 +37,21 @@ class client {
 
 private:
   // --------- Dados ---------- //
-  int  soquete;
+  int soquete;
   vector<frame *> framesMidia;
   conexao *local;
   conexao *target;
 
   // ---------- Funcoes -------- //
-  int  send_frames(vector<frame *> frames);
-  int  send_message(string data, int type);
+  int send_frames(vector<frame *> frames);
+  int send_message(string data, int type);
   void send_file();
   void send_text(string message);
   bool string_has(string str, vector<string> strList);
   char string_cmd(string str);
   void print_help();
   bool verify_ack(frame *received, frame *sent);
-  vector<frame*> create_frames(string data, int type);
+  vector<frame *> create_frames(string data, int type);
   string add_escapes(string data);
 
 public:
@@ -60,7 +60,7 @@ public:
 
   // ------- Construtores ------ //
   client(conexao *local, conexao *target);
-  
+
   // ---------- Funcoes -------- //
   void run();
 };
@@ -92,21 +92,21 @@ int client::send_frames(vector<frame *> frames) {
 
       /*wait for ack*/
       frame *f = local->receive_frame();
+      cout << "\tRecebendo ack\n";
+      // f->imprime(DEC);
       ack = verify_ack(f, frames[i]);
+      cout << "\tAck verificado: " << ack << "\n";
 
-      if (!ack)
-      {
+      if (!ack) {
         cout << "Falha no envio, timeout de: " << timeouts[timeout] << "seg\n";
         sleep(timeouts[timeout]);
         timeout++;
-      }
-
-      else
+      } else
         timeout = 0;
     }
 
     // Se tentar 10 vezes e nao conseguir, desiste de enviar
-    if ( timeout == timeouts.size() )
+    if (timeout == timeouts.size())
       return 0;
 
     cout << "\tFrame enviado com sucesso\n";
@@ -117,21 +117,28 @@ int client::send_frames(vector<frame *> frames) {
 }
 
 /**
- * @brief verify if the received frame is an ACK and if it is the same as the sent frame
- * 
- * @param received 
- * @param sent 
- * @return true 
- * @return false 
+ * @brief verify if the received frame is an ACK and if it is the same as the
+ * sent frame
+ *
+ * @param received
+ * @param sent
+ * @return true
+ * @return false
  */
 bool client::verify_ack(frame *received, frame *sent) {
 
-  return (received->get_tipo() == ACK              &&
-          received->get_seq() == sent->get_seq()   &&
-          received->get_dado() == sent->get_dado() &&
-          received->chk_crc8());
-}
+  // cout << "Verificando ack\n";
+  // cout << "ver-Tipo: " << static_cast<int>(received->get_tipo()) << " "
+  //      << static_cast<int>(ACK) << " = "
+  //      << (received->get_tipo() == ACK) << "\n";
+  // cout << "ver-Seq: " << received->get_seq() << " " << sent->get_seq() << " = " << (received->get_seq() == sent->get_seq()) << "\n";
+  // cout << "ver-Dado: " << received->get_dado() << " " << sent->get_dado() << " = " << (!strcmp(received->get_dado(),sent->get_dado())) << "\n";
+  // cout << "ver-CRC: " << received->chk_crc8() << "\n";
 
+  return (
+      received->get_tipo() == ACK && received->get_seq() == sent->get_seq() &&
+      !strcmp(received->get_dado(), sent->get_dado()) && received->chk_crc8());
+}
 
 /**
  * @brief Send data through the socket
@@ -158,10 +165,10 @@ void client::send_file() {
   cout << "Digite o nome do arquivo:\n";
   getline(cin, fileName);
 
-  if ( !send_message(fileName, MIDIA) ) 
+  if (!send_message(fileName, MIDIA))
     cout << "Limite de timout, arquivo nao foi enviado\n";
-  
-  else                                  
+
+  else
     cout << "Arquivo enviado com sucesso\n";
 }
 
@@ -174,10 +181,10 @@ void client::send_text(string message) {
 
   cout << "Enviando mensagem\n";
 
-  if ( !send_message(message, TEXTO) ) 
+  if (!send_message(message, TEXTO))
     cout << "Limite de timout, mensagem nao foi enviada\n";
-  
-  else                                  
+
+  else
     cout << "Mensagem enviada com sucesso\n";
 }
 
@@ -185,10 +192,10 @@ void client::send_text(string message) {
  * @brief Creates a vector with all the frames to be sent
  *
  * @param message
-*/
+ */
 
-vector<frame*> client::create_frames(string data, int type) {
-  vector<frame*> frames;
+vector<frame *> client::create_frames(string data, int type) {
+  vector<frame *> frames;
   int i = 0;
   string message = add_escapes(data);
 
@@ -217,21 +224,21 @@ string client::add_escapes(string data) {
   string message = "";
   for (size_t i = 0; i < data.size(); i++) {
 
-    switch (data[i]){
+    switch (data[i]) {
 
-      case 0x7E:
-        message += 0x7D;
-        message += 0x5E;
-        break;
+    case 0x7E:
+      message += 0x7D;
+      message += 0x5E;
+      break;
 
-      case 0x7D:
-        message += 0x7D;
-        message += 0x5D;
-        break;
+    case 0x7D:
+      message += 0x7D;
+      message += 0x5D;
+      break;
 
-      default:
-        message += data[i];
-        break;
+    default:
+      message += data[i];
+      break;
     }
   }
 
@@ -245,7 +252,7 @@ bool client::string_has(string str, vector<string> strList) {
       return true;
     }
   }
-    
+
   return false;
 }
 
@@ -294,26 +301,26 @@ void client::run() {
     char userInputCMD = string_cmd(userInput);
 
     switch (userInputCMD) {
-      case 'h':
-        print_help();
-        break;
-        
-      case 'e':
-        cout << "Saindo...\n";
-        exit(0);
-        break;
+    case 'h':
+      print_help();
+      break;
 
-      case 's':
-        send_file();
-        break;
+    case 'e':
+      cout << "Saindo...\n";
+      exit(0);
+      break;
 
-      case 'm':
-        send_text(userInput);
-        break;
+    case 's':
+      send_file();
+      break;
 
-      default:
-        cout << "Comando invalido\n";
-        break;
+    case 'm':
+      send_text(userInput);
+      break;
+
+    default:
+      cout << "Comando invalido\n";
+      break;
     }
   }
 }

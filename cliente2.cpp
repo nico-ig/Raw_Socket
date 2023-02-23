@@ -12,12 +12,12 @@
 #include <thread>
 
 // include local
+#include "client.h"
 #include "conexao.h"
 #include "crc8.h"
 #include "frame.h"
 #include "macros.h"
 #include "server.h"
-#include "client.h"
 
 using namespace std;
 
@@ -28,8 +28,8 @@ using namespace std;
 int main(int argc, char *argv[]) {
   gen_crc8_table();
 
-  conexao local((char *)"lo");
-  conexao target((char *)"lo1");
+  conexao local((char *)"lo1");
+  conexao target((char *)"lo");
 
   client cliente(&local, &target);
   thread clientSend(&client::run, &cliente);
@@ -47,4 +47,3 @@ int main(int argc, char *argv[]) {
 
   return 0;
 }
-

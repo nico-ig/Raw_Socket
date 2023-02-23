@@ -121,16 +121,17 @@ void server::run() {
 
     /*-- listening local ip and waiting for messages --*/
     fReceive = *local->receive_frame();
-
+    cout << "Frame recebido: " << fReceive.get_dado() << endl;
+    fReceive.imprime(DEC);
     /*-- if frame is an ACK or NACK, it ignores it --*/
     bool sendAck = fReceive.chk_crc8() && (fReceive.get_tipo() != ACK) &&
                    (fReceive.get_tipo() != NACK);
-
+    bool sendNack = !fReceive.chk_crc8() && fReceive.get_tipo() != ACK &&
+                    fReceive.get_tipo() != NACK;
     /*-- checking crc and sending ack or nack --*/
     if (sendAck)
       send_ack(fReceive);
-
-    else
+    else if (sendNack)
       send_nack(fReceive);
   }
 }
