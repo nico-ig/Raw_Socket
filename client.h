@@ -75,17 +75,19 @@ public:
  */
 int client::send_frames(vector<frame *> frames) {
 
-  vector<int> timeouts = {1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024};
+  vector<int> timeouts = {1, 2, 4, 8, 16, 32};
   bool ack = false;
 
   // Envia um frame por vez
   for (size_t i = 0; i < frames.size(); i++) {
 
+    cout << "\tEnviando frame\n";
+    frames[i]->imprime(DEC);
+
     int timeout = 0;
     // Fica tentando enviar o frame até receber o ack
-    while (!ack || timeout < timeouts.size()) {
+    while (!ack && (timeout < timeouts.size())) {
 
-      /*send frame*/
       target->send_frame(frames[i]);
 
       /*wait for ack*/
@@ -94,6 +96,7 @@ int client::send_frames(vector<frame *> frames) {
 
       if (!ack)
       {
+        cout << "Falha no envio, timeout de: " << timeouts[timeout] << "seg\n";
         sleep(timeouts[timeout]);
         timeout++;
       }
@@ -105,8 +108,11 @@ int client::send_frames(vector<frame *> frames) {
     // Se tentar 10 vezes e nao conseguir, desiste de enviar
     if ( timeout == timeouts.size() )
       return 0;
+
+    cout << "\tFrame enviado com sucesso\n";
   }
 
+  cout << "Terminou de enviar todos os frames\n";
   return 1;
 }
 
@@ -302,7 +308,6 @@ void client::run() {
         break;
 
       case 'm':
-        cout << "Enviando mensagem\n";
         send_text(userInput);
         break;
 

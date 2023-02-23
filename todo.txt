@@ -1,5 +1,7 @@
 -> Conferir se n ficou nenhuma funcao faltando
 
+-> Iniciar comunicacao
+
 -> Arrumar a interface
 
 -> Organizar header/src diretorios

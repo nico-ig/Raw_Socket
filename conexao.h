@@ -74,7 +74,7 @@ conexao::conexao(char *deviceIP) { device = ConexaoRawSocket(deviceIP); }
 */
 frame *conexao::receive_frame() {
 
-  memset(bufferReceived, 0, sizeof(bufferReceived));
+  memset(bufferReceived, 0, sizeof(frame));
 
   int byteRecv = recv(device, bufferReceived, sizeof(frame), 0);
   if (byteRecv <= 0) {
@@ -85,15 +85,6 @@ frame *conexao::receive_frame() {
   frame *f = new frame;
   memcpy(f, bufferReceived, sizeof(frame));
 
-  cout << "--------------------------------------------\n";
-  cout << "Recebido Frame: " << bufferReceived << "\n";
-
-  cout << "Frame:--------------------------------------------\n";
-  cout << "binário: ";
-  f->imprime(DEC);
-
-  if (f->get_tipo() == ACK) 
-    cout << "Recebido um ACK: " << f->get_dado() << "\n";
 
   return f;
 }
@@ -111,10 +102,6 @@ int conexao::send_frame(frame *f) {
   bool ack = false;
   int timeout = 0;
 
-  cout << "--------------------------------------------\n";
-  cout << "Enviando frame: " << bufferSend << "\n";
-  f->imprime(DEC);
-  
   byteSend = send(device, bufferSend, sizeof(frame), 0);
   if (byteSend < 0) {
     cout << "Erro no sendto" << byteSend << "\n";
@@ -133,7 +120,7 @@ int conexao::ConexaoRawSocket(char *device) {
 
   soquete = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL)); /*cria socket*/
   if (soquete == -1) {
-    printf("Erro no Socket\n");
+    printf("Erro no Socket, verifique se voce eh root\n");
     exit(-1);
   }
 
@@ -161,11 +148,7 @@ int conexao::ConexaoRawSocket(char *device) {
     printf("Erro ao fazer setsockopt\n");
     exit(-1);
   }
-  if (ioctl(soquete, SIOCGIFINDEX, &ir) == -1) {
-    perror("ioctl error");
-    return -1;
-  }
-
+  
   return soquete;
 }
 

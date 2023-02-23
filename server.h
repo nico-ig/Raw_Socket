@@ -64,12 +64,10 @@ int server::send_ack(frame fReceive) {
   ack->set_dado(fReceive.get_dado());
   ack->set_seq(fReceive.get_seq());
 
-  cout << "Enviando ACK ---------------\n";
-
   int ackSent = 0;
   ackSent = target->send_frame(ack);
 
-  cout << "ACK enviado: " << ackSent << endl;
+  cout << "ACK enviado\n";
 
   return ackSent;
 }
@@ -88,12 +86,10 @@ int server::send_nack(frame fReceive) {
   nack->set_dado(fReceive.get_dado());
   nack->set_seq(fReceive.get_seq());
 
-  cout << "Enviando NACK ---------------\n";
-
   int nackSent = 0;
   nackSent = target->send_frame(nack);
 
-  cout << "NACK enviado: " << nackSent << endl;
+  cout << "NACK enviado\n";
 
   return nackSent;
 }
@@ -119,28 +115,22 @@ server::server(conexao *localConnection, conexao *targetConnection) {
 
 // lock the thread with mutex
 void server::run() {
-  int i;
 
   while (true) {
     frame fReceive;
-    cout << "Recebendo frame ---------------\n";
 
     /*-- listening local ip and waiting for messages --*/
     fReceive = *local->receive_frame();
-    fReceive.imprime(DEC);
 
     /*-- if frame is an ACK or NACK, it ignores it --*/
-    bool sendAck = fReceive.chk_crc8() && fReceive.get_tipo() != ACK &&
-                   fReceive.get_tipo() != NACK;
-
-    bool sendNack = !fReceive.chk_crc8() && fReceive.get_tipo() != ACK &&
-                    fReceive.get_tipo() != NACK;
+    bool sendAck = fReceive.chk_crc8() && (fReceive.get_tipo() != ACK) &&
+                   (fReceive.get_tipo() != NACK);
 
     /*-- checking crc and sending ack or nack --*/
     if (sendAck)
       send_ack(fReceive);
 
-    else if (sendNack)
+    else
       send_nack(fReceive);
   }
 }

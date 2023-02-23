@@ -28,20 +28,14 @@ using namespace std;
 int main(int argc, char *argv[]) {
   gen_crc8_table();
 
-  conexao local((char *)"lo");
-  conexao target((char *)"lo1");
+  conexao socket((char *)"lo");
 
-  // Roda o servidor em uma thread
-  server servidor(&local, &target);
+  client cliente(&socket, &socket);
+  thread clientSend(&client::run, &cliente);
+  
+  server servidor(&socket, &socket);
   thread serverReceive(&server::run, &servidor);
 
-  // Roda o cliente em outra thread
-  client cliente(&local, &target);
-  thread clientSend(&client::run, &cliente);
-
-  string dataSend;
-  string dataReceive;
-  
   int receive = 0;
   while (true) {
     receive++;
