@@ -23,27 +23,56 @@ using namespace std;
 
 #define HEX "%02x"
 
-// Para rodar execute <sudo ip link add name lo1 type dummy> antes
+typedef enum { CLIENT, SERVER } STATUS_E;
+
+int get_status( char *argv )
+{
+  if ( !strcmp( argv, "client") ) { return CLIENT; } 
+  if ( !strcmp( argv, "server") ) { return SERVER; } 
+  else                           { return -1; }
+}
 
 int main(int argc, char *argv[]) {
+
   gen_crc8_table();
+  conexao socket((char *)"lo");
 
-  conexao local((char *)"lo");
-  conexao target((char *)"lo1");
+  int status = get_status(argv[1]);
+  switch ( status )
+  {
+    case CLIENT:
+    {
+      client cliente(&socket);
+      cliente.run();
+    }
+      break;
+    
+    case SERVER:
+    {
+      server servidor(&socket);
+      servidor.run();
+    }
+      break;
 
-  client cliente(&local, &target);
-  thread clientSend(&client::run, &cliente);
+    default:
+      cout << "Comando invalido\n";
+      break;
+  }   
 
-  server servidor(&local, &target);
-  thread serverReceive(&server::run, &servidor);
 
-  int receive = 0;
-  while (true) {
-    receive++;
-  }
 
-  serverReceive.join();
-  clientSend.join();
+//  thread clientSend(&client::run, &cliente);
+
+//  server servidor(&local, &target);
+//  thread serverReceive(&server::run, &servidor);
+
+//  int receive = 0;
+//  while (true) {
+//    receive++;
+//  }
+
+// serverReceive.join();
+//  clientSend.join();
 
   return 0;
 }

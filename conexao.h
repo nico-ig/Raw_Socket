@@ -14,11 +14,11 @@
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <sys/time.h>
 
 #include <arpa/inet.h>
 
 // include local
-#include "crc8.h"
 #include "frame.h"
 
 using namespace std;
@@ -28,6 +28,7 @@ using namespace std;
 class conexao {
 private:
   // ------ Dados ------ //
+  int timeoutMillis = 500;            // Tempo que fica tentando ler
   int sequence = -1;                  // sequencia do último frame recebido
   int local, target;                  // local and target ip address
                      
@@ -35,18 +36,19 @@ private:
   vector<frame> framesSending;
   vector<frame> framesReceiving;
 
-  char bufferReceived[sizeof(frame)]; // buffer
-  char bufferSend[sizeof(frame)];
-
+  char bufferReceived[sizeof(frame) * 2]; // buffer
+  char bufferSend[sizeof(frame) * 2];
                                
   int device;
-  int soquete;
   struct sockaddr_ll endereco;        // endereco do socket
                                
   vector<int> timeoutValues = {1, 2, 4, 8, 16, 32, 64, 128, 256, 512};
   
   // ----- Funçoes ------ //
+  int add_escapes(char *f, char* out);
+  int remove_escapes(char *f, char *out);
   int  ConexaoRawSocket(char *device);
+  long long timestamp();
   void close_connection();             // fecha a conexao
                                               
 public:
@@ -65,7 +67,7 @@ public:
  *
  * @param deviceIP -- ip address of the device
  */
-conexao::conexao(char *deviceIP) { device = ConexaoRawSocket(deviceIP); }
+conexao::conexao(char *deviceIP) { device = ConexaoRawSocket(deviceIP); memset(bufferSend, 0, sizeof(frame)*2); }
 
 /**
 * @brief Recebe um frame
@@ -74,19 +76,26 @@ conexao::conexao(char *deviceIP) { device = ConexaoRawSocket(deviceIP); }
 */
 frame *conexao::receive_frame() {
 
-  memset(bufferReceived, 0, sizeof(frame));
+  int byteRecv;
+  int lastSeq = -1;
+  long long start = timestamp();
+  struct timeval timeout = { .tv_sec = 0, .tv_usec = timeoutMillis * 1000 };
+  setsockopt(device, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout, sizeof(timeout));
 
-  int byteRecv = recv(device, bufferReceived, sizeof(frame), 0);
-  if (byteRecv <= 0) {
-    printf("Erro no recvfrom %d\n", byteRecv);
-    return NULL;
-  }
+  do {
+    byteRecv = recv(device, bufferReceived, sizeof(frame) * 2, 0);
+//    for (int i = 0; i < byteRecv; i++) {
+//      cout << hex << (int(bufferReceived[i])&0xff) << " ";
+//    }
+    cout << "\n";
+    if ( (byteRecv > 0) && (bufferReceived[0] == INI) ) {
+      frame *f = new frame;
+      remove_escapes(bufferReceived, (char*)f);
+      return f;
+    }
+  } while ( timestamp() - start <= timeoutMillis );
 
-  frame *f = new frame;
-  memcpy(f, bufferReceived, sizeof(frame));
-
-
-  return f;
+  return NULL;
 }
 
 /**
@@ -96,13 +105,18 @@ frame *conexao::receive_frame() {
 * @return int 
 */
 int conexao::send_frame(frame *f) {
-  int byteSend;
-  memcpy(bufferSend, f, sizeof(frame));
+
+  add_escapes((char*) f, bufferSend);
 
   bool ack = false;
   int timeout = 0;
 
-  byteSend = send(device, bufferSend, sizeof(frame), 0);
+  int byteSend = send(device, bufferSend, sizeof(frame) * 2, 0);
+  printf("send %d: ", byteSend);
+  for (int i = 0; i < byteSend; i++) {
+    cout << hex << (int(bufferSend[i])&0xff) << " ";
+  }
+  cout << "\n";
   if (byteSend < 0) {
     cout << "Erro no sendto" << byteSend << "\n";
   }
@@ -111,6 +125,39 @@ int conexao::send_frame(frame *f) {
 }
 
 // ------------------------------ PRIVATE --------------------------------- //
+
+/**
+ * @brief Add escape characters to the data to be sent
+ *
+ * @param data
+ * @return string
+ */
+int conexao::add_escapes(char *f, char *out) {
+  
+  int j = 0;
+
+  for (size_t i = 0; i < sizeof(frame); i++) {
+    out[j++] = f[i];
+
+    if ( f[i] == 0x88 || f[i] == 0x81 )
+      out[j++] = 0xFF;
+  }
+
+  return j;
+}
+
+int conexao::remove_escapes(char *f, char* out) {
+  int j = 0;
+  for (size_t i = 0; j < sizeof(frame); i++)
+  {
+    out[j++] = f[i];
+
+    if ( f[i] == 0x88 || f[i] == 0x81 )
+      i++;
+  }
+
+  return j;
+}
 
 int conexao::ConexaoRawSocket(char *device) {
   int soquete;
@@ -150,6 +197,13 @@ int conexao::ConexaoRawSocket(char *device) {
   }
   
   return soquete;
+}
+
+long long conexao::timestamp()
+{
+  struct timeval tp;
+  gettimeofday(&tp, NULL);
+  return tp.tv_sec * 1000 + tp.tv_usec / 1000;
 }
 
 #endif

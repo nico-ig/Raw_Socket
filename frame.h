@@ -46,7 +46,7 @@ class frame
     void  add_ini(int cod);
     void add_tipo(int t);
     void  add_seq(int s);
-    void add_dado(string d);
+    void add_dado(vector<char> d);
     void  add_tam(int t);
     void  add_crc(uint8_t *d);
     
@@ -57,7 +57,7 @@ class frame
   public:
   // ------- Construtores ------ //
   frame();
-  frame(int t, int s, string d);
+  frame(int t, int s, vector<char> d);
 
   // ---------- Funcoes -------- //    
   uint8_t   get_ini() { return ini;  }
@@ -69,7 +69,7 @@ class frame
 
   void     set_seq(int s) { add_seq(s);  }
   void    set_tipo(int t) { add_tipo(t); }
-  void set_dado(string d) { add_dado(d); }
+  void set_dado(vector<char> d) { add_dado(d); }
 
   int chk_crc8() { return (calc_crc8((uint8_t *)dado, tam) == crc8); }
 
@@ -87,12 +87,12 @@ void frame::add_tam(int t)   {  tam = t;   }
 
 void frame::add_crc(uint8_t *d) { crc8 = calc_crc8(d, tam); }
 
-void frame::add_dado(string d)  
+void frame::add_dado(vector<char> d)  
 { 
-  if ( d.size() > 63 ) { return; }
+  if ( d.size() > 63 ) { printf("ERRADO\n"); return; }
 
   add_tam(d.size()); 
-  strcpy(dado, d.c_str()); 
+  memcpy(dado, d.data(), d.size()); 
   add_crc((uint8_t *)dado); 
 }
 
@@ -125,7 +125,10 @@ void frame::imprime_hex()
   printf(" Seq: 0x%X\n",  seq);
   printf(" Tam: 0x%X\n",  tam);
   printf("Dado:");
-  for ( int i = 0; i < tam; i++ ) { printf(" 0x%X", dado[i]); }
+  for ( int i = 0; i < tam; i++ ) { printf(" 0x%X", int(dado[i])&0xff); }
+  printf("\n");
+  printf("Dado: ");
+  for ( int i = 0; i < tam; i++ ) { printf("%c", dado[i]); }
   printf("\n");
   printf("Crc8: 0x%X\n", crc8);
 }
@@ -136,14 +139,24 @@ void frame::imprime_dec()
   printf("Tipo: %d\n", tipo);
   printf(" Seq: %d\n",  seq);
   printf(" Tam: %d\n",  tam);
-  printf("Dado: %s\n", dado);
+  printf("Dado:");
+  for ( int i = 0; i < tam; i++ ) { printf(" %d", dado[i]); }
+  printf("\n");
+  printf("Dado: ");
+  for ( int i = 0; i < tam; i++ ) { printf("%c", int(dado[i])&0xff); }
+  printf("\n");
   printf("Crc8: %d\n", crc8);
 }
 
 // ------------------------------- PUBLIC --------------------------------- //
-frame::frame() { add_ini(INI); }
+frame::frame() {
+  add_ini(INI);
+  add_tipo(0);
+  add_seq(0);
+  memset(dado, 0, sizeof(dado));
+}
 
-frame::frame(int t, int s, string d)
+frame::frame(int t, int s, vector<char> d)
 {
   add_ini(INI);
   add_tipo(t);

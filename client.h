@@ -21,8 +21,9 @@
 
 // include local
 #include "conexao.h"
-#include "crc8.h"
 #include "frame.h"
+
+#define NUM_RETRIES 100
 
 vector<string> CMD_HELP = {"H",  "help",  "-h",    "HELP", "Help",
                            "-H", "ajuda", "Ajuda", "AJUDA"};
@@ -39,27 +40,25 @@ private:
   // --------- Dados ---------- //
   int soquete;
   vector<frame *> framesMidia;
-  conexao *local;
-  conexao *target;
+  conexao *socket;
 
   // ---------- Funcoes -------- //
   int send_frames(vector<frame *> frames);
-  int send_message(string data, int type);
+  int send_message(vector<char> data, int type);
   void send_file();
   void send_text(string message);
   bool string_has(string str, vector<string> strList);
   char string_cmd(string str);
   void print_help();
   bool verify_ack(frame *received, frame *sent);
-  vector<frame *> create_frames(string data, int type);
-  string add_escapes(string data);
+  vector<frame *> create_frames(vector<char> data, int type);
 
 public:
   // --------- Dados ---------- //
   string userInput;
 
   // ------- Construtores ------ //
-  client(conexao *local, conexao *target);
+  client(conexao *socketAddr) { socket = socketAddr; };
 
   // ---------- Funcoes -------- //
   void run();
@@ -75,39 +74,36 @@ public:
  */
 int client::send_frames(vector<frame *> frames) {
 
-  vector<int> timeouts = {1, 2, 4, 8, 16, 32};
-  bool ack = false;
-
   // Envia um frame por vez
   for (size_t i = 0; i < frames.size(); i++) {
 
     cout << "\tEnviando frame\n";
     frames[i]->imprime(DEC);
 
-    int timeout = 0;
+    int retries = 0;
+
     // Fica tentando enviar o frame até receber o ack
-    while (!ack && (timeout < timeouts.size())) {
+    frame* ack_res = NULL;
+    do {
+      // envia um frame da fila
+      socket->send_frame(frames[i]);
+      retries++;
 
-      target->send_frame(frames[i]);
+      // se recebemos algo, e NÃO ẽ o ACK que estamos
+      // esperando, continuamos tentando receber
+      do {
+        ack_res = socket->receive_frame();
+      } while (
+        ack_res &&
+        !(verify_ack(ack_res, frames[i]) &&
+          ack_res->get_seq() == frames[i]->get_seq())
+      );
+    } while (ack_res == NULL && retries < NUM_RETRIES);
 
-      /*wait for ack*/
-      frame *f = local->receive_frame();
-      cout << "\tRecebendo ack\n";
-      // f->imprime(DEC);
-      ack = verify_ack(f, frames[i]);
-      cout << "\tAck verificado: " << ack << "\n";
-
-      if (!ack) {
-        cout << "Falha no envio, timeout de: " << timeouts[timeout] << "seg\n";
-        sleep(timeouts[timeout]);
-        timeout++;
-      } else
-        timeout = 0;
-    }
-
-    // Se tentar 10 vezes e nao conseguir, desiste de enviar
-    if (timeout == timeouts.size())
+    if (ack_res == NULL && retries == NUM_RETRIES) {
+      cout << "Desisti de enviar\n";
       return 0;
+    }
 
     cout << "\tFrame enviado com sucesso\n";
   }
@@ -127,17 +123,14 @@ int client::send_frames(vector<frame *> frames) {
  */
 bool client::verify_ack(frame *received, frame *sent) {
 
-  // cout << "Verificando ack\n";
-  // cout << "ver-Tipo: " << static_cast<int>(received->get_tipo()) << " "
-  //      << static_cast<int>(ACK) << " = "
-  //      << (received->get_tipo() == ACK) << "\n";
-  // cout << "ver-Seq: " << received->get_seq() << " " << sent->get_seq() << " = " << (received->get_seq() == sent->get_seq()) << "\n";
-  // cout << "ver-Dado: " << received->get_dado() << " " << sent->get_dado() << " = " << (!strcmp(received->get_dado(),sent->get_dado())) << "\n";
-  // cout << "ver-CRC: " << received->chk_crc8() << "\n";
+   cout << "Verificando ack\nReceived:\n";
+   received->imprime(HEX);
+   cout << "Sent:\n";
+   sent->imprime(HEX);
 
   return (
-      received->get_tipo() == ACK && received->get_seq() == sent->get_seq() &&
-      !strcmp(received->get_dado(), sent->get_dado()) && received->chk_crc8());
+      received->get_tipo() == ACK                     && 
+      received->chk_crc8());
 }
 
 /**
@@ -146,7 +139,7 @@ bool client::verify_ack(frame *received, frame *sent) {
  * @param data: data to be sent
  * @return int
  */
-int client::send_message(string data, int type) {
+int client::send_message(vector<char> data, int type) {
 
   int messageSize = data.size();
   vector<frame *> frames;
@@ -165,7 +158,7 @@ void client::send_file() {
   cout << "Digite o nome do arquivo:\n";
   getline(cin, fileName);
 
-  if (!send_message(fileName, MIDIA))
+  if (!send_message(vector<char>(fileName.begin(), fileName.end()), MIDIA))
     cout << "Limite de timout, arquivo nao foi enviado\n";
 
   else
@@ -181,7 +174,8 @@ void client::send_text(string message) {
 
   cout << "Enviando mensagem\n";
 
-  if (!send_message(message, TEXTO))
+  vector<char> data (message.begin(), message.end());
+  if (!send_message(data, TEXTO))
     cout << "Limite de timout, mensagem nao foi enviada\n";
 
   else
@@ -194,55 +188,21 @@ void client::send_text(string message) {
  * @param message
  */
 
-vector<frame *> client::create_frames(string data, int type) {
+vector<frame *> client::create_frames(vector<char> data, int type) {
   vector<frame *> frames;
   int i = 0;
-  string message = add_escapes(data);
 
-  while (i < message.size()) {
+  int frameCnt = (data.size()/63) + bool(data.size()%63);
+  while (i < frameCnt) {
     frame *f = new frame();
     f->set_tipo(type);
     f->set_seq(i);
-    f->set_dado(message.substr(i, 63));
+    f->set_dado(vector<char>(data.data()+i*63, data.data()+min(data.size(), (size_t)(i+1)*63)));
     frames.push_back(f);
-    i += 63;
+    i++;
   }
 
   return frames;
-}
-
-/*-- Não são os escapes certos, só queria deixar pronto essa parte para
-   botar os escapes certos--*/
-/**
- * @brief Add escape characters to the data to be sent
- *
- * @param data
- * @return string
- */
-string client::add_escapes(string data) {
-
-  string message = "";
-  for (size_t i = 0; i < data.size(); i++) {
-
-    switch (data[i]) {
-
-    case 0x7E:
-      message += 0x7D;
-      message += 0x5E;
-      break;
-
-    case 0x7D:
-      message += 0x7D;
-      message += 0x5D;
-      break;
-
-    default:
-      message += data[i];
-      break;
-    }
-  }
-
-  return message;
 }
 
 bool client::string_has(string str, vector<string> strList) {
@@ -280,18 +240,6 @@ void client::print_help() {
 
 // ------------------------------- PUBLIC --------------------------------- //
 
-/**
- * @brief Construct a new client::client object
- *
- * @param localConnection local connection to listen for messages
- * @param targetConnection  target connection to send frames
- */
-client::client(conexao *localConnection, conexao *targetConnection) {
-  local = localConnection;
-  target = targetConnection;
-}
-
-// lock the thread with mutex
 void client::run() {
   int i;
   while (true) {

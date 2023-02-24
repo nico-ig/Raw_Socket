@@ -21,7 +21,6 @@
 
 // include local
 #include "conexao.h"
-#include "crc8.h"
 #include "frame.h"
 
 using namespace std;
@@ -32,18 +31,17 @@ private:
   // --------- Dados ---------- //
   int soquete;
 
-  conexao *local;
-  conexao *target;
+  conexao *socket;
 
   vector<frame *> framesMidia;
 
   // ---------- Funcoes -------- //
-  int send_nack(frame fReceive);
-  int send_ack(frame fReceive);
+  int send_nack(frame *fReceive);
+  int send_ack(frame *fReceive);
 
 public:
   // ------- Construtores ------ //
-  server(conexao *local, conexao *target);
+  server(conexao *socketAddr) { socket = socketAddr; };
 
   // ---------- Funcoes -------- //
   void run();
@@ -56,16 +54,16 @@ public:
  * @param fReceive frame received
  * @return int
  */
-int server::send_ack(frame fReceive) {
+int server::send_ack(frame *fReceive) {
 
   frame *ack = new frame();
 
   ack->set_tipo(ACK);
-  ack->set_dado(fReceive.get_dado());
-  ack->set_seq(fReceive.get_seq());
+  ack->set_dado(vector<char>(fReceive->get_dado(), fReceive->get_dado()+fReceive->get_tam()));
+  ack->set_seq(fReceive->get_seq());
 
   int ackSent = 0;
-  ackSent = target->send_frame(ack);
+  ackSent = socket->send_frame(ack);
 
   cout << "ACK enviado\n";
 
@@ -78,16 +76,16 @@ int server::send_ack(frame fReceive) {
  * @param fReceive frame received
  * @return int
  */
-int server::send_nack(frame fReceive) {
+int server::send_nack(frame *fReceive) {
 
   frame *nack = new frame();
 
   nack->set_tipo(NACK);
-  nack->set_dado(fReceive.get_dado());
-  nack->set_seq(fReceive.get_seq());
+  nack->set_dado(vector<char>(fReceive->get_dado(), fReceive->get_dado()+fReceive->get_tam()));
+  nack->set_seq(fReceive->get_seq());
 
   int nackSent = 0;
-  nackSent = target->send_frame(nack);
+  nackSent = socket->send_frame(nack);
 
   cout << "NACK enviado\n";
 
@@ -98,17 +96,6 @@ int server::send_nack(frame fReceive) {
 // ------------------------------- PUBLIC --------------------------------- //
 
 /**
- * @brief Construct a new server::server object
- *
- * @param localConnection local ip and port to listen
- * @param targetConnection target ip and port to send
- */
-server::server(conexao *localConnection, conexao *targetConnection) {
-  local = localConnection;
-  target = targetConnection;
-}
-
-/**
  * @brief function that runs the server thread and receives the frames
  *
  */
@@ -117,17 +104,20 @@ server::server(conexao *localConnection, conexao *targetConnection) {
 void server::run() {
 
   while (true) {
-    frame fReceive;
+    frame *fReceive;
 
     /*-- listening local ip and waiting for messages --*/
-    fReceive = *local->receive_frame();
-    cout << "Frame recebido: " << fReceive.get_dado() << endl;
-    fReceive.imprime(DEC);
+    /*-- ignore if the package is not valid          --*/
+    if ( ! (fReceive = socket->receive_frame()) ) { continue; }
+    cout << "Frame recebido:" << endl;
+    fReceive->imprime(HEX);
+
     /*-- if frame is an ACK or NACK, it ignores it --*/
-    bool sendAck = fReceive.chk_crc8() && (fReceive.get_tipo() != ACK) &&
-                   (fReceive.get_tipo() != NACK);
-    bool sendNack = !fReceive.chk_crc8() && fReceive.get_tipo() != ACK &&
-                    fReceive.get_tipo() != NACK;
+    bool sendAck = fReceive->chk_crc8() && (fReceive->get_tipo() != ACK) &&
+                   (fReceive->get_tipo() != NACK);
+    bool sendNack = !fReceive->chk_crc8() && fReceive->get_tipo() != ACK &&
+                    fReceive->get_tipo() != NACK;
+
     /*-- checking crc and sending ack or nack --*/
     if (sendAck)
       send_ack(fReceive);
