@@ -1,22 +1,13 @@
 #ifndef _CONEXAO_
 #define _CONEXAO_
 
-#include <bits/stdc++.h>
-#include <fstream>
-#include <iostream>
-#include <linux/if.h>
-#include <linux/if_packet.h>
-#include <net/ethernet.h>
-#include <netinet/in.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/ioctl.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <sys/time.h>
-
 #include <arpa/inet.h>
+#include <net/ethernet.h>
+#include <linux/if_packet.h>
+#include <net/if.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <sys/time.h>
 
 // include local
 #include "frame.h"
@@ -39,15 +30,14 @@ private:
   char bufferReceived[sizeof(frame) * 2]; // buffer
   char bufferSend[sizeof(frame) * 2];
                                
-  int device;
-  struct sockaddr_ll endereco;        // endereco do socket
+  int soquete;
                                
   vector<int> timeoutValues = {1, 2, 4, 8, 16, 32, 64, 128, 256, 512};
   
   // ----- Funçoes ------ //
   int add_escapes(char *f, char* out);
   int remove_escapes(char *f, char *out);
-  int  ConexaoRawSocket(char *device);
+  int  ConexaoRawSocket(char *nome_interface_rede);
   long long timestamp();
   void close_connection();             // fecha a conexao
                                               
@@ -56,8 +46,6 @@ public:
   conexao(char *deviceIP);
   frame *receive_frame();              // recebe um pacote
   int send_frame(frame *f);            // envia um pacote
-
-  int get_socket() { return device; };
 };
 
 // ------------------------------- PUBLIC --------------------------------- //
@@ -67,7 +55,7 @@ public:
  *
  * @param deviceIP -- ip address of the device
  */
-conexao::conexao(char *deviceIP) { device = ConexaoRawSocket(deviceIP); memset(bufferSend, 0, sizeof(frame)*2); }
+conexao::conexao(char *deviceIP) { soquete = ConexaoRawSocket(deviceIP); memset(bufferSend, 0, sizeof(frame)*2); }
 
 /**
 * @brief Recebe um frame
@@ -80,10 +68,10 @@ frame *conexao::receive_frame() {
   int lastSeq = -1;
   long long start = timestamp();
   struct timeval timeout = { .tv_sec = 0, .tv_usec = timeoutMillis * 1000 };
-  setsockopt(device, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout, sizeof(timeout));
+  setsockopt(soquete, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout, sizeof(timeout));
 
   do {
-    byteRecv = recv(device, bufferReceived, sizeof(frame) * 2, 0);
+    byteRecv = recv(soquete, bufferReceived, sizeof(frame) * 2, 0);
 //    for (int i = 0; i < byteRecv; i++) {
 //      cout << hex << (int(bufferReceived[i])&0xff) << " ";
 //    }
@@ -111,7 +99,7 @@ int conexao::send_frame(frame *f) {
   bool ack = false;
   int timeout = 0;
 
-  int byteSend = send(device, bufferSend, sizeof(frame) * 2, 0);
+  int byteSend = send(soquete, bufferSend, sizeof(frame) * 2, 0);
   printf("send %d: ", byteSend);
   for (int i = 0; i < byteSend; i++) {
     cout << hex << (int(bufferSend[i])&0xff) << " ";
@@ -159,40 +147,53 @@ int conexao::remove_escapes(char *f, char* out) {
   return j;
 }
 
-int conexao::ConexaoRawSocket(char *device) {
-  int soquete;
-  struct ifreq ir;
-  struct sockaddr_ll endereco;
-  struct packet_mreq mr;
-
-  soquete = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL)); /*cria socket*/
+int conexao::ConexaoRawSocket(char *nome_interface_rede) {
+  // Cria o socket sem nenhum protocolo
+  int soquete = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL)); /*cria socket*/
   if (soquete == -1) {
     printf("Erro no Socket, verifique se voce eh root\n");
     exit(-1);
   }
 
-  memset(&ir, 0, sizeof(struct ifreq)); /*dispositivo eth0*/
-  memcpy(ir.ifr_name, device, sizeof(device));
-  if (ioctl(soquete, SIOCGIFINDEX, &ir) == -1) {
-    printf("Erro no ioctl\n");
-    exit(-1);
-  }
+  int ifindex = if_nametoindex(nome_interface_rede);
 
-  memset(&endereco, 0, sizeof(endereco)); /*IP do dispositivo*/
+  struct sockaddr_ll endereco = {0};
   endereco.sll_family = AF_PACKET;
   endereco.sll_protocol = htons(ETH_P_ALL);
-  endereco.sll_ifindex = ir.ifr_ifindex;
-  if (bind(soquete, (struct sockaddr *)&endereco, sizeof(endereco)) == -1) {
+  endereco.sll_ifindex = ifindex;
+
+  if ( bind(soquete, (struct sockaddr*)&endereco, sizeof(endereco)) == -1 )
+  {
     printf("Erro no bind\n");
     exit(-1);
   }
 
-  memset(&mr, 0, sizeof(mr)); /*Modo Promiscuo*/
-  mr.mr_ifindex = ir.ifr_ifindex;
+  struct packet_mreq mr = {0};
+  mr.mr_ifindex = ifindex;
   mr.mr_type = PACKET_MR_PROMISC;
-  if ((setsockopt(soquete, SOL_PACKET, PACKET_ADD_MEMBERSHIP, &mr, sizeof(mr)) <
-       0)) {
+
+//  memset(&ir, 0, sizeof(struct ifreq)); /*dispositivo eth0*/
+//  memcpy(ir.ifr_name, device, sizeof(device));
+//  if (ioctl(soquete, SIOCGIFINDEX, &ir) == -1) {
+//    printf("Erro no ioctl\n");
+//    exit(-1);
+//  }
+//
+//  memset(&endereco, 0, sizeof(endereco)); /*IP do dispositivo*/
+//  endereco.sll_family = AF_PACKET;
+//  endereco.sll_protocol = htons(ETH_P_ALL);
+//  endereco.sll_ifindex = ir.ifr_ifindex;
+//  if (bind(soquete, (struct sockaddr *)&endereco, sizeof(endereco)) == -1) {
+//    printf("Erro no bind\n");
+//    exit(-1);
+//  }
+//
+//  memset(&mr, 0, sizeof(mr)); /*Modo Promiscuo*/
+//  mr.mr_ifindex = ir.ifr_ifindex;
+//  mr.mr_type = PACKET_MR_PROMISC;
+  if (setsockopt(soquete, SOL_PACKET, PACKET_ADD_MEMBERSHIP, &mr, sizeof(mr)) == -1) {
     printf("Erro ao fazer setsockopt\n");
+    printf("Verifique a especificacao da placa: eth0, enp3s0, ...\n");
     exit(-1);
   }
   

@@ -1,15 +1,5 @@
-#include <bits/stdc++.h>
-#include <linux/if.h>
-#include <linux/if_packet.h>
-#include <net/ethernet.h>
-#include <netinet/in.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/ioctl.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <thread>
+#include <iostream>
+#include <vector>
 
 // include local
 #include "conexao.h"
@@ -35,7 +25,7 @@ int get_status( char *argv )
 int main(int argc, char *argv[]) {
 
   gen_crc8_table();
-  conexao socket((char *)"lo");
+  conexao socket((char *)argv[2]);
 
   int status = get_status(argv[1]);
   switch ( status )
