@@ -1,23 +1,13 @@
-#include <bits/stdc++.h>
-#include <linux/if.h>
-#include <linux/if_packet.h>
-#include <net/ethernet.h>
-#include <netinet/in.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/ioctl.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <thread>
+#include <iostream>
+#include <vector>
 
 // include local
-#include "conexao.h"
-#include "crc8.h"
-#include "frame.h"
-#include "macros.h"
-#include "server.h"
-#include "client.h"
+#include "../headers/conexao.h"
+#include "../headers/crc8.h"
+#include "../headers/frame.h"
+#include "../headers/macros.h"
+#include "../headers/server.h"
+#include "../headers/client.h"
 
 using namespace std;
 
@@ -35,9 +25,13 @@ int get_status( char *argv )
 int main(int argc, char *argv[]) {
 
   gen_crc8_table();
+<<<<<<< HEAD:exemplo.cpp
   char* device = argv[2];
   cout << "Device: " << device << endl;
   conexao socket(device);
+=======
+  conexao socket((char *)argv[2]);
+>>>>>>> 80e7f477d4253b6d77bf36c80fb004480000a16a:src/exemplo.cpp
 
   int status = get_status(argv[1]);
   switch ( status )
