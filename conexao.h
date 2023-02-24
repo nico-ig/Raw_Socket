@@ -160,6 +160,7 @@ int conexao::remove_escapes(char *f, char* out) {
 }
 
 int conexao::ConexaoRawSocket(char *device) {
+  cout << "Conectando com o dispositivo " << device << "\n";
   int soquete;
   struct ifreq ir;
   struct sockaddr_ll endereco;
@@ -196,6 +197,7 @@ int conexao::ConexaoRawSocket(char *device) {
     exit(-1);
   }
   
+  cout << "Conectado com sucesso em " << device << "\n";
   return soquete;
 }
 
