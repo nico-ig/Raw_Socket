@@ -2,12 +2,12 @@
 #include <vector>
 
 // include local
-#include "conexao.h"
-#include "crc8.h"
-#include "frame.h"
-#include "macros.h"
-#include "server.h"
-#include "client.h"
+#include "../headers/conexao.h"
+#include "../headers/crc8.h"
+#include "../headers/frame.h"
+#include "../headers/macros.h"
+#include "../headers/server.h"
+#include "../headers/client.h"
 
 using namespace std;
 
