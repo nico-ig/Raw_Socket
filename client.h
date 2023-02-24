@@ -192,12 +192,13 @@ vector<frame *> client::create_frames(vector<char> data, int type) {
   vector<frame *> frames;
   int i = 0;
 
-  int frameCnt = (data.size()/63) + bool(data.size()%63);
+  int frameCnt = (data.size()/TAM_DADOS) + bool(data.size()%TAM_DADOS);
   while (i < frameCnt) {
     frame *f = new frame();
     f->set_tipo(type);
     f->set_seq(i);
-    f->set_dado(vector<char>(data.data()+i*63, data.data()+min(data.size(), (size_t)(i+1)*63)));
+    f->set_dado(vector<char>(data.data()+i*TAM_DADOS, data.data()+
+                             min(data.size(), (size_t)(i+1)*TAM_DADOS)));
     frames.push_back(f);
     i++;
   }

@@ -11,6 +11,9 @@
 // Define o codigo de inicio
 #define INI 0x7E
 
+// Define o tamanho do campo de dados em bytes
+#define TAM_DADOS 63
+
 using namespace std;
 
 typedef enum { BIN, HEX, DEC } Base;
@@ -39,7 +42,7 @@ class frame
     uint8_t tipo:6;
     uint8_t seq :4;
     uint8_t  tam:6;
-    char  dado[63];
+    char  dado[TAM_DADOS];
     uint8_t   crc8;
 
   // ---------- Funcoes -------- //    
@@ -89,8 +92,6 @@ void frame::add_crc(uint8_t *d) { crc8 = calc_crc8(d, tam); }
 
 void frame::add_dado(vector<char> d)  
 { 
-  if ( d.size() > 63 ) { printf("ERRADO\n"); return; }
-
   add_tam(d.size()); 
   memcpy(dado, d.data(), d.size()); 
   add_crc((uint8_t *)dado); 
