@@ -79,7 +79,7 @@ frame *client::receive_ack(frame *f)
   // esperando, continuamos tentando receber
   do {
     ack_res = socket->receive_frame();
-    if (ack_res->get_tipo() == ERRO) 
+    if (ack_res && ack_res->get_tipo() == ERRO) 
     { 
       cout << "Espaco insulficiente no destino\n";
       return NULL;
