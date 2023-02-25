@@ -211,9 +211,12 @@ int client::send_message(vector<char> data, int type) {
 string client::calc_file_size(string fileName)
 {
   struct stat buffer;
-  stat(fileName.c_str(), &buffer);
-  int fileSize = buffer.st_size;
+  if ( stat(fileName.c_str(), &buffer) == -1 ) {
+    cout << "Arquivo inexistente. Operacao abortada\n";
+    return {};
+  }
 
+  int fileSize = buffer.st_size;
   return to_string(fileSize);
 }
 
@@ -221,11 +224,6 @@ vector<char> client::read_file(string fileName)
 {
   fstream file;
   file.open(fileName, ios::in); 
-
-  if (!file) {
-    cout << "Arquivo inexistente. Operacao abortada\n";
-    return vector<char>();
-  }
   
   string teste;
   vector<char> fileData;
@@ -254,6 +252,8 @@ void client::send_file() {
 
   // Envia o primeiro frame com o tamanho do arquivo
   string fileSize = calc_file_size(fileName);
+  if ( fileSize.empty() ) { return; }
+
   cout << "Tamanho do arquivo: " << fileSize << "\n";
   cout << "Enviando tamanho do arquivo\n";
   if (!send_message(vector<char>(fileSize.begin(), fileSize.end()), MIDIA))
