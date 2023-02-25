@@ -7,6 +7,7 @@
 #include <iostream>
 #include <linux/if.h>
 #include <linux/if_packet.h>
+#include <mutex>
 #include <net/ethernet.h>
 #include <netinet/in.h>
 #include <stdio.h>
@@ -14,9 +15,8 @@
 #include <string.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
-#include <sys/types.h>
-#include <mutex>
 #include <sys/statvfs.h>
+#include <sys/types.h>
 
 #include <arpa/inet.h>
 
@@ -106,33 +106,29 @@ int server::send_nack(frame *fReceive) {
 }
 
 // Recebe uma mensagem em forma de texto
-void server::receive_text(frame *f)
-{
+void server::receive_text(frame *f) {
   string textoReceive;
   textoReceive.append(f->get_dado());
   int lastSeq = f->get_seq();
-  
+
   do {
-    if ( !receive_valid_frame(&f) ) { continue; }
-    if ( f->get_tipo() != TEXTO ) { continue; }
-    if ( f->get_seq() == lastSeq) { continue; }
-    
+    if (!receive_valid_frame(&f)) { continue; }
+    if (f->get_tipo() != TEXTO) { continue; }
+    if (f->get_seq() == lastSeq) { continue; }
+
     lastSeq = f->get_seq();
     textoReceive.append(f->get_dado());
-
-  } while ( f->get_tipo() != FIMT );
+  } while (f->get_tipo() != FIMT);
 
   cout << "Mensagem recebida: " << textoReceive << "\n";
 }
 
 // Verifica o espaco disponivel em disco
-unsigned long server::chk_available_size()
-{
+unsigned long server::chk_available_size() {
   struct statvfs st;
-  if ( statvfs(FILE_DESTINATION, &st) == -1 )
-  {
+  if (statvfs(FILE_DESTINATION, &st) == -1) {
     cout << "Erro no statvfs, abortado\n";
-    //send_error();
+    // send_error();
     return -1;
   }
 
@@ -140,17 +136,15 @@ unsigned long server::chk_available_size()
 }
 
 // Recebe o frame com o tamanho do arquivo
-long long server::receive_file_size(frame *f)
-{
+long long server::receive_file_size(frame *f) {
   unsigned long availSize = chk_available_size();
-  if ( availSize == -1 ) { return -1; }
+  if (availSize == -1) { return -1; }
 
-  unsigned long fileSize  = stoi(f->get_dado());
+  unsigned long fileSize = stoi(f->get_dado());
 
-  if ( fileSize > availSize*0.9 ) 
-  {
+  if (fileSize > availSize * 0.9) {
     cout << "Tamanho do arquivo muito grande, abortado\n";
-    //send_error();
+    // send_error();
     return -1;
   }
 
@@ -158,27 +152,24 @@ long long server::receive_file_size(frame *f)
   return 1;
 }
 
-void server::receive_midia(frame *f)
-{
-  //if ( !create_received_dir)   { return; }
-  if ( !receive_file_size(f) ) { return; }
-  //if ( !receive_file_name()    { return; }
-  //receive_file_data();
+void server::receive_midia(frame *f) {
+  // if ( !create_received_dir)   { return; }
+  if (!receive_file_size(f)) { return; }
+  // if ( !receive_file_name()    { return; }
+  // receive_file_data();
 }
 
 // Recebe um frame do cliente
-frame *server::receive_frame_socket()
-{
+frame *server::receive_frame_socket() {
   frame *fReceive;
   int retries = 0;
 
-  do
-  {
+  do {
     retries++;
-    if ( ! (fReceive = socket->receive_frame()) ) { continue; }
-  } while ( fReceive == NULL && retries < NUM_RETRIES );
+    if (!(fReceive = socket->receive_frame())) { continue; }
+  } while (fReceive == NULL && retries < NUM_RETRIES);
 
-  if ( fReceive == NULL && retries == NUM_RETRIES ) {
+  if (fReceive == NULL && retries == NUM_RETRIES) {
     cout << "Desisti de receber o frame\n";
     return NULL;
   }
@@ -186,52 +177,51 @@ frame *server::receive_frame_socket()
   return fReceive;
 }
 
-int server::receive_valid_frame(frame **f)
-{
+int server::receive_valid_frame(frame **f) {
   int crc8;
 
   do {
     // Se nao conseguir receber o frame, mata a comunicacao
     *f = receive_frame_socket();
-    if ( *f == NULL ) { return 0; }
+    if (*f == NULL) { return 0; }
 
     // Avisa o cliente se nao conseguiu receber o frame
     crc8 = (*f)->chk_crc8();
-    if ( crc8 ) { send_ack(*f); break; }
+    if (crc8) {
+      send_ack(*f);
+      break;
+    }
     send_nack(*f);
-
-  } while ( !crc8 );
+  } while (!crc8);
 
   return 1;
 }
 
-void server::start_receveing_message()
-{
+void server::start_receveing_message() {
   int endTransmission = 0;
 
   frame *f;
-  do { 
-    if ( !receive_valid_frame(&f) ) { return; }
-    if ( !f ) { return; } 
+  do {
+    if (!receive_valid_frame(&f)) { return; }
+    if (!f) { return; }
     int frameType = f->get_tipo();
 
-    switch (frameType)
-    {
-      case TEXTO:
-        receive_text(f);
-        endTransmission = 1;
-        break;
+    switch (frameType) {
+    case TEXTO:
+      receive_text(f);
+      endTransmission = 1;
+      break;
 
-      case MIDIA:
-        receive_midia(f);
-        endTransmission = 1;
-        break;
+    case MIDIA:
+      receive_midia(f);
+      endTransmission = 1;
+      break;
 
-      default:
-        break; }
-  } while ( !endTransmission );
+    default:
+      break;
+    }
+  } while (!endTransmission);
 }
-
 
 // ------------------------------- PUBLIC --------------------------------- //
 
@@ -241,16 +231,19 @@ void server::run() {
     /*-- listening local ip and waiting for messages --*/
     /*-- ignore if the package is not valid          --*/
     frame *fReceive;
-    if ( ! (fReceive = socket->receive_frame()) ) { continue; }
+    if (!(fReceive = socket->receive_frame())) { continue; }
 
     cout << "Frame recebido:" << endl;
     fReceive->imprime(HEX);
 
     // Verifica se o frame eh de inicio de transmissao e se nao veio com erro
     int frameType = fReceive->get_tipo();
-    if ( frameType != INIT ) { continue; }
-    
-    if ( !fReceive->chk_crc8() ) { send_nack(fReceive); continue; }
+    if (frameType != INIT) { continue; }
+
+    if (!fReceive->chk_crc8()) {
+      send_nack(fReceive);
+      continue;
+    }
 
     send_ack(fReceive);
     start_receveing_message();

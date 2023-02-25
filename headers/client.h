@@ -2,6 +2,7 @@
 #ifndef _CLIENT_
 #define _CLIENT_
 
+#include <arpa/inet.h>
 #include <bits/stdc++.h>
 #include <fstream>
 #include <iostream>
@@ -15,9 +16,8 @@
 #include <string.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
-#include <sys/types.h>
 #include <sys/stat.h>
-#include <arpa/inet.h>
+#include <sys/types.h>
 
 // include local
 #include "conexao.h"
@@ -71,41 +71,33 @@ public:
 // ------------------------------ PRIVATE --------------------------------- //
 
 // Verifica se recebeu um ack valido
-frame *client::receive_ack(frame *f)
-{
+frame *client::receive_ack(frame *f) {
   frame *ack_res = NULL;
 
   // se recebemos algo, e NÃO ẽ o ACK que estamos
   // esperando, continuamos tentando receber
   do {
     ack_res = socket->receive_frame();
-    if (ack_res && ack_res->get_tipo() == ERRO) 
-    { 
+    if (ack_res && ack_res->get_tipo() == ERRO) {
       cout << "Espaco insulficiente no destino\n";
       return NULL;
     }
-
-  } while (
-    ack_res &&
-    !(verify_ack(ack_res, f) &&
-      ack_res->get_dado()[0] == f->get_seq())
-  );
+  } while (ack_res &&
+           !(verify_ack(ack_res, f) && ack_res->get_dado()[0] == f->get_seq()));
 
   return ack_res;
 }
 
 // Solicita ao socket que envie um frame
-int client::send_frame_socket(frame *f)
-{
+int client::send_frame_socket(frame *f) {
   // Fica tentando enviar o frame até receber o ack
-  frame* ack_res = NULL;
+  frame *ack_res = NULL;
   int retries = 0;
   do {
     // envia um frame da fila
     socket->send_frame(f);
     ack_res = receive_ack(f);
     retries++;
-
   } while (ack_res == NULL && retries < NUM_RETRIES);
 
   if (ack_res == NULL && retries == NUM_RETRIES) {
@@ -119,13 +111,11 @@ int client::send_frame_socket(frame *f)
 }
 
 // Inicia a transmissao com o servidor
-int client::start_transmission()
-{
+int client::start_transmission() {
   cout << "\tIniciando transmissao\n";
-  frame *ini = new frame(INIT, 0, vector<char>(1,0));
+  frame *ini = new frame(INIT, 0, vector<char>(1, 0));
   int enviado = send_frame_socket(ini);
-  if ( !enviado )
-  {
+  if (!enviado) {
     cout << "\tFalha ao iniciar a transmissao\n";
     return 0;
   }
@@ -135,13 +125,11 @@ int client::start_transmission()
 }
 
 // Encerra a transmissao com o servidor
-int client::end_transmission()
-{
+int client::end_transmission() {
   cout << "\tEncerrando a transmissao\n";
-  frame *end= new frame(FIMT, 0, vector<char>(1,0));
+  frame *end = new frame(FIMT, 0, vector<char>(1, 0));
   int enviado = send_frame_socket(end);
-  if ( !enviado )
-  {
+  if (!enviado) {
     cout << "\tFalha ao encerrar a transmissao\n";
     return 0;
   }
@@ -157,7 +145,7 @@ int client::end_transmission()
  * @return int
  */
 int client::send_frames(vector<frame *> frames) {
-  if ( !start_transmission() ) { return 0; }
+  if (!start_transmission()) { return 0; }
 
   // Envia um frame por vez
   for (size_t i = 0; i < frames.size(); i++) {
@@ -166,8 +154,7 @@ int client::send_frames(vector<frame *> frames) {
     frames[i]->imprime(DEC);
 
     int enviado = send_frame_socket(frames[i]);
-    if ( !enviado ) 
-    {
+    if (!enviado) {
       cout << "\tFalha ao enviar o frame\n";
       return 0;
     }
@@ -175,7 +162,7 @@ int client::send_frames(vector<frame *> frames) {
     cout << "\tFrame enviado com sucesso\n";
   }
 
-  if ( !end_transmission() ) { return 0; }
+  if (!end_transmission()) { return 0; }
   cout << "\tTerminou de enviar todos os frames\n";
   return 1;
 }
@@ -190,7 +177,7 @@ int client::send_frames(vector<frame *> frames) {
  * @return false
  */
 bool client::verify_ack(frame *received, frame *sent) {
-  return ( received->get_tipo() == ACK && received->chk_crc8());
+  return (received->get_tipo() == ACK && received->chk_crc8());
 }
 
 /**
@@ -208,10 +195,9 @@ int client::send_message(vector<char> data, int type) {
   return send_frames(frames);
 }
 
-string client::calc_file_size(string fileName)
-{
+string client::calc_file_size(string fileName) {
   struct stat buffer;
-  if ( stat(fileName.c_str(), &buffer) == -1 ) {
+  if (stat(fileName.c_str(), &buffer) == -1) {
     cout << "Arquivo inexistente. Operacao abortada\n";
     return {};
   }
@@ -220,16 +206,14 @@ string client::calc_file_size(string fileName)
   return to_string(fileSize);
 }
 
-vector<char> client::read_file(string fileName)
-{
+vector<char> client::read_file(string fileName) {
   fstream file;
-  file.open(fileName, ios::in); 
-  
+  file.open(fileName, ios::in);
+
   string teste;
   vector<char> fileData;
   char c;
-  while ( (file.get(c), file.eof() == false) )
-  {
+  while ((file.get(c), file.eof() == false)) {
     fileData.push_back(c);
     teste.push_back(c);
   }
@@ -248,37 +232,36 @@ void client::send_file() {
   do {
     cout << "Digite o nome do arquivo(maximo de " << TAM_DADOS << " char):\n";
     getline(cin, fileName);
-  } while ( fileName.size() > TAM_DADOS );
+  } while (fileName.size() > TAM_DADOS);
 
   // Envia o primeiro frame com o tamanho do arquivo
   string fileSize = calc_file_size(fileName);
-  if ( fileSize.empty() ) { return; }
+  if (fileSize.empty()) { return; }
 
   cout << "Tamanho do arquivo: " << fileSize << "\n";
   cout << "Enviando tamanho do arquivo\n";
-  if (!send_message(vector<char>(fileSize.begin(), fileSize.end()), MIDIA))
-  {
+  if (!send_message(vector<char>(fileSize.begin(), fileSize.end()), MIDIA)) {
     cout << "Limite de timout, arquivo nao foi enviado\n";
     return;
   }
 
   // Envia o segundo frame com o nome do arquivo
-//  cout << "Enviando nome do arquivo\n";
-//  if (!send_message(vector<char>(fileName.begin(), fileName.end()), MIDIA))
-//  {
-//    cout << "Limite de timout, arquivo nao foi enviado\n";
-//    return;
-//  }
-//
-//  cout << "Enviando arquivo\n";
-//  vector<char> file = read_file(fileName);
-//  if (file.empty() || !send_message(file, DADOS))
-//  {
-//    cout << "Limite de timout, arquivo nao foi enviado\n";
-//    return;
-//  }
-//
-//  cout << "Arquivo enviado com sucesso\n";
+  //  cout << "Enviando nome do arquivo\n";
+  //  if (!send_message(vector<char>(fileName.begin(), fileName.end()), MIDIA))
+  //  {
+  //    cout << "Limite de timout, arquivo nao foi enviado\n";
+  //    return;
+  //  }
+  //
+  //  cout << "Enviando arquivo\n";
+  //  vector<char> file = read_file(fileName);
+  //  if (file.empty() || !send_message(file, DADOS))
+  //  {
+  //    cout << "Limite de timout, arquivo nao foi enviado\n";
+  //    return;
+  //  }
+  //
+  //  cout << "Arquivo enviado com sucesso\n";
 }
 
 /**
@@ -290,7 +273,7 @@ void client::send_text(string message) {
 
   cout << "Enviando mensagem\n";
 
-  vector<char> data (message.begin(), message.end());
+  vector<char> data(message.begin(), message.end());
   if (!send_message(data, TEXTO))
     cout << "Limite de timout, mensagem nao foi enviada\n";
 
@@ -308,13 +291,14 @@ vector<frame *> client::create_frames(vector<char> data, int type) {
   vector<frame *> frames;
   int i = 0;
 
-  int frameCnt = (data.size()/TAM_DADOS) + bool(data.size()%TAM_DADOS);
+  int frameCnt = (data.size() / TAM_DADOS) + bool(data.size() % TAM_DADOS);
   while (i < frameCnt) {
     frame *f = new frame();
     f->set_tipo(type);
     f->set_seq(i);
-    f->set_dado(vector<char>(data.data()+i*TAM_DADOS, data.data()+
-                             min(data.size(), (size_t)(i+1)*TAM_DADOS)));
+    f->set_dado(vector<char>(
+        data.data() + i * TAM_DADOS,
+        data.data() + min(data.size(), (size_t)(i + 1) * TAM_DADOS)));
     frames.push_back(f);
     i++;
   }
@@ -325,23 +309,18 @@ vector<frame *> client::create_frames(vector<char> data, int type) {
 bool client::string_has(string str, vector<string> strList) {
 
   for (int i = 0; i < strList.size(); i++) {
-    if (str.find(strList[i]) != string::npos) {
-      return true;
-    }
+    if (str.find(strList[i]) != string::npos) { return true; }
   }
 
   return false;
 }
 
 char client::string_cmd(string str) {
-  if (string_has(str, CMD_HELP))
-    return 'h';
+  if (string_has(str, CMD_HELP)) return 'h';
 
-  if (string_has(str, CMD_EXIT))
-    return 'e';
+  if (string_has(str, CMD_EXIT)) return 'e';
 
-  if (string_has(str, CMD_SEND))
-    return 's';
+  if (string_has(str, CMD_SEND)) return 's';
 
   return 'm';
 }
