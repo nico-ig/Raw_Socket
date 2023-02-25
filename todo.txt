@@ -1,5 +1,7 @@
 -> Ver se os frames que estao vindo sao arquivos e juntar eles no arquivo
 
+-> Arrumar nome arquivo > 63
+
 -> Testar tamanho antes de enviar o arquivo
 
 -> Arrumar a interface

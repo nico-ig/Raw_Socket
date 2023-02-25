@@ -16,12 +16,15 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <mutex>
+#include <sys/statvfs.h>
 
 #include <arpa/inet.h>
 
 // include local
 #include "conexao.h"
 #include "frame.h"
+
+#define FILE_DESTINATION "./received"
 
 using namespace std;
 
@@ -40,6 +43,7 @@ private:
   int send_ack(frame *fReceive);
   void send_confirm(frame *fReceive);
   void receive_text(frame *f);
+  void receive_midia(frame *f);
   frame *receive_frame_socket();
   int receive_valid_frame(frame **f);
   void start_receveing_message();
@@ -119,7 +123,36 @@ void server::receive_text(frame *f)
   cout << "Mensagem recebida: " << textoReceive << "\n";
 }
 
-// Recebe o primeiro frame do cliente
+// Verifica o espaco disponivel em disco
+unsigned long server::chk_available_size()
+{
+  struct statvfs st;
+  if ( statvfs(FILE_DESTINATION, &st) == -1 )
+  {
+    cout << "Erro no statvfs, abortado\n";
+    //send_error();
+    return;
+  }
+
+  return st.f_bsize * st.f_bavail;
+}
+
+void server::receive_midia(frame *f)
+{
+  unsigned long availSize = chk_available_size();
+  unsigned long fileSize  = stoi(f->get_dado());
+
+  if ( fileSize > availSize*0.9 ) 
+  {
+    cout << "Tamanho do arquivo muito grande, abortado\n";
+    //send_error();
+    return;
+  }
+
+  cout << "Espaco suficiente em disco\n";
+}
+
+// Recebe um frame do cliente
 frame *server::receive_frame_socket()
 {
   frame *fReceive;
@@ -162,8 +195,9 @@ void server::start_receveing_message()
 {
   int endTransmission = 0;
 
+  frame *f;
   do { 
-    frame *f = receive_frame_socket();
+    if ( !receive_valid_frame(&f) ) { return; }
     if ( !f ) { return; } 
     int frameType = f->get_tipo();
 
@@ -175,6 +209,8 @@ void server::start_receveing_message()
         break;
 
       case MIDIA:
+        receive_midia(f);
+        endTransmission = 1;
         break;
 
       default:

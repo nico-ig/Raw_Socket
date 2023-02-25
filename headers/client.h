@@ -216,7 +216,7 @@ string client::calc_file_size(string fileName)
     return {};
   }
 
-  int fileSize = buffer.st_size;
+  long long fileSize = buffer.st_size;
   return to_string(fileSize);
 }
 
