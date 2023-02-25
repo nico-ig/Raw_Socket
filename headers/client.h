@@ -263,23 +263,22 @@ void client::send_file() {
   }
 
   // Envia o segundo frame com o nome do arquivo
-  cout << "Enviando nome do arquivo\n";
-  if (!send_message(vector<char>(fileName.begin(), fileName.end()), MIDIA))
-  {
-    cout << "Limite de timout, arquivo nao foi enviado\n";
-    return;
-  }
-
-  cout << "Enviando arquivo\n";
-  vector<char> file = read_file(fileName);
-  if (file.empty() || !send_message(file, DADOS))
-  {
-    cout << "Limite de timout, arquivo nao foi enviado\n";
-    return;
-  }
-
-  else
-    cout << "Arquivo enviado com sucesso\n";
+//  cout << "Enviando nome do arquivo\n";
+//  if (!send_message(vector<char>(fileName.begin(), fileName.end()), MIDIA))
+//  {
+//    cout << "Limite de timout, arquivo nao foi enviado\n";
+//    return;
+//  }
+//
+//  cout << "Enviando arquivo\n";
+//  vector<char> file = read_file(fileName);
+//  if (file.empty() || !send_message(file, DADOS))
+//  {
+//    cout << "Limite de timout, arquivo nao foi enviado\n";
+//    return;
+//  }
+//
+//  cout << "Arquivo enviado com sucesso\n";
 }
 
 /**

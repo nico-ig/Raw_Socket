@@ -46,6 +46,7 @@ private:
   void receive_midia(frame *f);
   frame *receive_frame_socket();
   int receive_valid_frame(frame **f);
+  unsigned long chk_available_size();
   void start_receveing_message();
 
 public:
@@ -131,25 +132,37 @@ unsigned long server::chk_available_size()
   {
     cout << "Erro no statvfs, abortado\n";
     //send_error();
-    return;
+    return -1;
   }
 
   return st.f_bsize * st.f_bavail;
 }
 
-void server::receive_midia(frame *f)
+// Recebe o frame com o tamanho do arquivo
+int server::receive_file_size()
 {
   unsigned long availSize = chk_available_size();
+  if ( availSize == -1 ) { return -1; }
+
   unsigned long fileSize  = stoi(f->get_dado());
 
   if ( fileSize > availSize*0.9 ) 
   {
     cout << "Tamanho do arquivo muito grande, abortado\n";
     //send_error();
-    return;
+    return -1;
   }
 
   cout << "Espaco suficiente em disco\n";
+  return 1;
+}
+
+void server::receive_midia(frame *f)
+{
+  //if ( !create_received_dir)   { return; }
+  if ( !receive_file_size(f) ) { return; }
+  //if ( !receive_file_name()    { return; }
+  //receive_file_data();
 }
 
 // Recebe um frame do cliente
@@ -214,8 +227,7 @@ void server::start_receveing_message()
         break;
 
       default:
-        break;
-    }
+        break; }
   } while ( !endTransmission );
 }
 
