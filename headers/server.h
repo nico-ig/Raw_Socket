@@ -47,6 +47,7 @@ private:
   frame *receive_frame_socket();
   int receive_valid_frame(frame **f);
   unsigned long chk_available_size();
+  long long receive_file_size(frame *f);
   void start_receveing_message();
 
 public:
@@ -139,7 +140,7 @@ unsigned long server::chk_available_size()
 }
 
 // Recebe o frame com o tamanho do arquivo
-int server::receive_file_size()
+long long server::receive_file_size(frame *f)
 {
   unsigned long availSize = chk_available_size();
   if ( availSize == -1 ) { return -1; }
