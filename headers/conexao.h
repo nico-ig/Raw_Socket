@@ -24,6 +24,7 @@
 using namespace std;
 
 #define BYTE "%02x"
+#define NUM_RETRIES 100
 
 class conexao {
 private:

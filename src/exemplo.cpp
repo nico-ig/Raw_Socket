@@ -25,13 +25,9 @@ int get_status( char *argv )
 int main(int argc, char *argv[]) {
 
   gen_crc8_table();
-<<<<<<< HEAD:exemplo.cpp
   char* device = argv[2];
   cout << "Device: " << device << endl;
   conexao socket(device);
-=======
-  conexao socket((char *)argv[2]);
->>>>>>> 80e7f477d4253b6d77bf36c80fb004480000a16a:src/exemplo.cpp
 
   int status = get_status(argv[1]);
   switch ( status )

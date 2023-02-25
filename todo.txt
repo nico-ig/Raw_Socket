@@ -1,8 +1,8 @@
 -> Ver se os frames que estao vindo sao arquivos e juntar eles no arquivo
 
--> Juntar todos os frames num so para mensagens de mais de dois frames
+-> Testar tamanho antes de enviar o arquivo
 
--> Fazer o close_connection
+-> Arrumar a interface
 
 -> Merge correcao de erro
   -> Enviar arquivo correcao de erros
@@ -14,13 +14,7 @@
 
 -> Merge log
 
--> Organizar header/src diretorios
-
 -> Adicionar coisas no log
-
--> Testar tamanho antes de enviar o arquivo
-
--> Arrumar a interface
 
 -> Polling para enviar/receber (encerrar comunicacao/esperar/trocar)
 

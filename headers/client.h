@@ -16,14 +16,12 @@
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/types.h>
-
+#include <sys/stat.h>
 #include <arpa/inet.h>
 
 // include local
 #include "conexao.h"
 #include "frame.h"
-
-#define NUM_RETRIES 100
 
 vector<string> CMD_HELP = {"H",  "help",  "-h",    "HELP", "Help",
                            "-H", "ajuda", "Ajuda", "AJUDA"};
@@ -51,7 +49,13 @@ private:
   char string_cmd(string str);
   void print_help();
   bool verify_ack(frame *received, frame *sent);
+  frame *receive_ack(frame *f);
   vector<frame *> create_frames(vector<char> data, int type);
+  int send_frame_socket(frame *f);
+  int start_transmission();
+  int end_transmission();
+  string calc_file_size(string fileName);
+  vector<char> read_file(string fileName);
 
 public:
   // --------- Dados ---------- //
@@ -66,6 +70,86 @@ public:
 
 // ------------------------------ PRIVATE --------------------------------- //
 
+// Verifica se recebeu um ack valido
+frame *client::receive_ack(frame *f)
+{
+  frame *ack_res = NULL;
+
+  // se recebemos algo, e NÃO ẽ o ACK que estamos
+  // esperando, continuamos tentando receber
+  do {
+    ack_res = socket->receive_frame();
+    if (ack_res->get_tipo() == ERRO) 
+    { 
+      cout << "Espaco insulficiente no destino\n";
+      return NULL;
+    }
+
+  } while (
+    ack_res &&
+    !(verify_ack(ack_res, f) &&
+      ack_res->get_dado()[0] == f->get_seq())
+  );
+
+  return ack_res;
+}
+
+// Solicita ao socket que envie um frame
+int client::send_frame_socket(frame *f)
+{
+  // Fica tentando enviar o frame até receber o ack
+  frame* ack_res = NULL;
+  int retries = 0;
+  do {
+    // envia um frame da fila
+    socket->send_frame(f);
+    ack_res = receive_ack(f);
+    retries++;
+
+  } while (ack_res == NULL && retries < NUM_RETRIES);
+
+  if (ack_res == NULL && retries == NUM_RETRIES) {
+    cout << "Desisti de enviar\n";
+    return 0;
+  }
+
+  cout << "\tACK recebido:\n";
+  ack_res->imprime(HEX);
+  return 1;
+}
+
+// Inicia a transmissao com o servidor
+int client::start_transmission()
+{
+  cout << "\tIniciando transmissao\n";
+  frame *ini = new frame(INIT, 0, vector<char>(1,0));
+  int enviado = send_frame_socket(ini);
+  if ( !enviado )
+  {
+    cout << "\tFalha ao iniciar a transmissao\n";
+    return 0;
+  }
+
+  cout << "\tTransmissao iniciada com sucesso\n";
+  return 1;
+}
+
+// Encerra a transmissao com o servidor
+int client::end_transmission()
+{
+  cout << "\tEncerrando a transmissao\n";
+  frame *end= new frame(FIMT, 0, vector<char>(1,0));
+  int enviado = send_frame_socket(end);
+  if ( !enviado )
+  {
+    cout << "\tFalha ao encerrar a transmissao\n";
+    return 0;
+  }
+
+  cout << "\tTransmissao encerrada com sucesso\n";
+  return 1;
+}
+
 /**
  * @brief Send a list of frames through the socket
  *
@@ -73,6 +157,7 @@ public:
  * @return int
  */
 int client::send_frames(vector<frame *> frames) {
+  if ( !start_transmission() ) { return 0; }
 
   // Envia um frame por vez
   for (size_t i = 0; i < frames.size(); i++) {
@@ -80,35 +165,18 @@ int client::send_frames(vector<frame *> frames) {
     cout << "\tEnviando frame\n";
     frames[i]->imprime(DEC);
 
-    int retries = 0;
-
-    // Fica tentando enviar o frame até receber o ack
-    frame* ack_res = NULL;
-    do {
-      // envia um frame da fila
-      socket->send_frame(frames[i]);
-      retries++;
-
-      // se recebemos algo, e NÃO ẽ o ACK que estamos
-      // esperando, continuamos tentando receber
-      do {
-        ack_res = socket->receive_frame();
-      } while (
-        ack_res &&
-        !(verify_ack(ack_res, frames[i]) &&
-          ack_res->get_seq() == frames[i]->get_seq())
-      );
-    } while (ack_res == NULL && retries < NUM_RETRIES);
-
-    if (ack_res == NULL && retries == NUM_RETRIES) {
-      cout << "Desisti de enviar\n";
+    int enviado = send_frame_socket(frames[i]);
+    if ( !enviado ) 
+    {
+      cout << "\tFalha ao enviar o frame\n";
       return 0;
     }
 
     cout << "\tFrame enviado com sucesso\n";
   }
 
-  cout << "Terminou de enviar todos os frames\n";
+  if ( !end_transmission() ) { return 0; }
+  cout << "\tTerminou de enviar todos os frames\n";
   return 1;
 }
 
@@ -122,15 +190,7 @@ int client::send_frames(vector<frame *> frames) {
  * @return false
  */
 bool client::verify_ack(frame *received, frame *sent) {
-
-   cout << "Verificando ack\nReceived:\n";
-   received->imprime(HEX);
-   cout << "Sent:\n";
-   sent->imprime(HEX);
-
-  return (
-      received->get_tipo() == ACK                     && 
-      received->chk_crc8());
+  return ( received->get_tipo() == ACK && received->chk_crc8());
 }
 
 /**
@@ -148,18 +208,75 @@ int client::send_message(vector<char> data, int type) {
   return send_frames(frames);
 }
 
+string client::calc_file_size(string fileName)
+{
+  struct stat buffer;
+  stat(fileName.c_str(), &buffer);
+  int fileSize = buffer.st_size;
+
+  return to_string(fileSize);
+}
+
+vector<char> client::read_file(string fileName)
+{
+  fstream file;
+  file.open(fileName, ios::in); 
+
+  if (!file) {
+    cout << "Arquivo inexistente. Operacao abortada\n";
+    return vector<char>();
+  }
+  
+  string teste;
+  vector<char> fileData;
+  char c;
+  while ( (file.get(c), file.eof() == false) )
+  {
+    fileData.push_back(c);
+    teste.push_back(c);
+  }
+
+  file.close();
+  cout << "vetor criado: " << teste << "\n";
+  return fileData;
+}
+
 /**
  * @brief Send a file through the socket
  *
  */
 void client::send_file() {
-  cout << "Enviando arquivo\n";
   string fileName;
-  cout << "Digite o nome do arquivo:\n";
-  getline(cin, fileName);
+  do {
+    cout << "Digite o nome do arquivo(maximo de " << TAM_DADOS << " char):\n";
+    getline(cin, fileName);
+  } while ( fileName.size() > TAM_DADOS );
 
-  if (!send_message(vector<char>(fileName.begin(), fileName.end()), MIDIA))
+  // Envia o primeiro frame com o tamanho do arquivo
+  string fileSize = calc_file_size(fileName);
+  cout << "Tamanho do arquivo: " << fileSize << "\n";
+  cout << "Enviando tamanho do arquivo\n";
+  if (!send_message(vector<char>(fileSize.begin(), fileSize.end()), MIDIA))
+  {
     cout << "Limite de timout, arquivo nao foi enviado\n";
+    return;
+  }
+
+  // Envia o segundo frame com o nome do arquivo
+  cout << "Enviando nome do arquivo\n";
+  if (!send_message(vector<char>(fileName.begin(), fileName.end()), MIDIA))
+  {
+    cout << "Limite de timout, arquivo nao foi enviado\n";
+    return;
+  }
+
+  cout << "Enviando arquivo\n";
+  vector<char> file = read_file(fileName);
+  if (file.empty() || !send_message(file, DADOS))
+  {
+    cout << "Limite de timout, arquivo nao foi enviado\n";
+    return;
+  }
 
   else
     cout << "Arquivo enviado com sucesso\n";
