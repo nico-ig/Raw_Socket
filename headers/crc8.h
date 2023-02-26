@@ -1,8 +1,8 @@
 #ifndef _CRC8_
 #define _CRC8_
 
-#include <string>
 #include "macros.h"
+#include <string>
 
 using namespace std;
 
