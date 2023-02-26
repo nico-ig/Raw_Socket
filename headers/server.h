@@ -52,6 +52,8 @@ private:
   bool create_received_dir();
   string receive_file_name();
   int receive_file_data(string fileName);
+  bool verify_crc8(frame *f);
+  bool verify_seq(int seq, int lastSeq);
 
 public:
   // ------- Construtores ------ //
@@ -140,12 +142,33 @@ unsigned long server::chk_available_size() {
 
 // Recebe o frame com o tamanho do arquivo
 int server::receive_file_size(frame *f) {
-  if ( !strncmp(f->get_dado(), "NAME", 4)) { return 0; }
+
+  /*
+     > verifica a sequencia do frame e o tipo
+     > se o frame nao for a sequencia esperada, envia um ack(0) e espera receber
+     a sequencia esperada > se o frame for o esperado, verifica o crc8 > se o
+     crc estiver certo, envia um ack e continua > se estiver errado, envia um
+     nack e espera receber o proximo frame
+  */
+  do {
+    while (f->get_seq() != 1 && f->get_tipo() != MIDIA) {
+      f->set_seq(0);
+      send_ack(f);
+      f = receive_frame_socket();
+      if (!f) { return 0; }
+    }
+
+    if (verify_crc8(f)) { break; }
+
+    // Se o ack nao estiver certo, espera receber o proximo frame
+    f = receive_frame_socket();
+    if (!f) { return 0; }
+  } while (true);
 
   unsigned long availSize = chk_available_size();
   if (availSize == -1) { return -1; }
 
-  cout << "frame file size:" << f->get_dado() << "\n";
+  cout << "Frame file size:" << f->get_dado() << "\n";
   int fileSize = stoi(f->get_dado());
 
   if (fileSize > availSize * 0.9) {
@@ -179,32 +202,50 @@ bool server::create_received_dir() {
 
 string server::receive_file_name() {
   frame *fReceive;
-  int lastSeq = -1;
 
   // Aguarda receber um frame do tipo midia com o nome do arquivo
+  // E com a sequencia de numero 2
+  /*
+    > recebe o frame e verifica se o tipo e a sequencia estao corretos
+    > se estiverem, verifica o crc8
+    > se estiver correto, envia um ack e continua
+    > se estiver errado, envia um nack e espera receber o proximo frame
+  */
   do {
-    if (!receive_valid_frame(&fReceive)) { return string {}; }
-    if (fReceive->get_tipo() != MIDIA) { continue; }
-    if (strncmp(fReceive->get_dado(), "NAME", 4)) { continue; }
+    do {
+      fReceive = receive_frame_socket();
+      if (!fReceive) { return string{}; }
 
+      if (fReceive->get_tipo() != MIDIA) { continue; }
+      fReceive->set_seq(1);
+      send_ack(fReceive);
 
-    if (fReceive->get_seq() == lastSeq) { continue; }
-    lastSeq = fReceive->get_seq();
+    } while (fReceive->get_seq() != 2);
 
-  } while (fReceive->get_tipo() != FIMT);
+    if (verify_crc8(fReceive)) { break; }
 
-  
+    fReceive = receive_frame_socket();
+    if (!fReceive) { return string{}; }
+
+  } while (true);
+
   cout << "Nome do arquivo recebido com sucesso\n";
-  cout << "Nome do arquivo: " << fReceive->get_dado()+4 << "\n";
+  cout << "Nome do arquivo: " << fReceive->get_dado() << "\n";
 
-  return string(fReceive->get_dado()+4);
+  return string(fReceive->get_dado());
+}
+
+bool server::verify_seq(int seq, int lastSeq) {
+  if (lastSeq == 15 && seq != 0) { return false; }
+  if (seq != lastSeq + 1) { return false; }
+  return true;
 }
 
 int server::receive_file_data(string fileName) {
-
+  cout << "\tRecebendo dados arquivo\n";
   // Abre o arquivo para escrita
   ofstream file;
-  file.open(FILE_DESTINATION+"/"+fileName);
+  file.open(fileName, ios::binary);
   if (!file.is_open()) {
     cout << "Falha ao criar o arquivo. Abortado\n";
     return 0;
@@ -212,30 +253,45 @@ int server::receive_file_data(string fileName) {
 
   cout << "Arquivo criado com sucesso\n";
 
-  int lastSeq = -1; 
+  int lastSeq = 2;
   frame *f;
 
   do {
-    if (!receive_valid_frame(&f)) { return 0; }
-    if (f->get_tipo() != DADOS)   { continue; }
-    if (f->get_seq() == lastSeq)  { continue; }
+    // Fica tentando receber um frame
+    f = receive_frame_socket();
+    if (f == NULL) { return 0; }
+
+    if (f->get_tipo() == FIMT) { break; }
+
+    if (f->get_tipo() != DADOS) { continue; }
+
+    // Recebeu um frame com uma sequencia errada
+    if (!verify_seq(f->get_seq(), lastSeq)) {
+      f->set_seq(lastSeq);
+      send_ack(f);
+      continue;
+    }
+
+    if (!verify_crc8(f)) { continue; }
 
     lastSeq = f->get_seq();
     file.write(f->get_dado(), f->get_tam());
-  } while (f->get_tipo() != FIMT);
+
+  } while (true);
 
   cout << "Arquivo recebido com sucesso\n";
+
   file.close();
   return 1;
 }
 
 void server::receive_midia(frame *f) {
   if (!create_received_dir()) { return; }
-  if (!receive_file_size(f))  { return; }
+  if (!receive_file_size(f)) { return; }
 
   string fileName = receive_file_name();
 
-  if (fileName.size() == 0)   { return; }
+  if (fileName.size() == 0) { return; }
 
   receive_file_data(fileName);
 }
@@ -258,23 +314,27 @@ frame *server::receive_frame_socket() {
   return fReceive;
 }
 
+bool server::verify_crc8(frame *f) {
+  int crc8 = f->chk_crc8();
+  if (!crc8) {
+    send_nack(f);
+  }
+  else
+    send_ack(f);
+  return crc8;
+}
+
 int server::receive_valid_frame(frame **f) {
-  int crc8;
 
   do {
     // Se nao conseguir receber o frame, mata a comunicacao
     *f = receive_frame_socket();
     if (*f == NULL) { return 0; }
 
+    cout << "Frame recebido loop\n";
+    (*f)->imprime(HEX);
     // Avisa o cliente se nao conseguiu receber o frame
-    crc8 = (*f)->chk_crc8();
-    if (crc8) {
-      send_ack(*f);
-      break;
-    }
-    send_nack(*f);
-  } while (!crc8);
-
+  } while (!verify_crc8(*f));
   return 1;
 }
 

@@ -51,6 +51,7 @@ private:
   bool verify_ack(frame *received, frame *sent);
   frame *receive_ack(frame *f);
   vector<frame *> create_frames(vector<char> data, int type);
+  vector<frame *> create_frames_midia(vector<char> data);
   int send_frame_socket(frame *f);
   int start_transmission();
   int end_transmission();
@@ -62,7 +63,7 @@ public:
   string userInput;
 
   // ------- Construtores ------ //
-  client(conexao *socketAddr) { socket = socketAddr; };
+  client(conexao *socketAddr) { socket = socketAddr; }
 
   // ---------- Funcoes -------- //
   void run();
@@ -145,6 +146,8 @@ int client::end_transmission() {
  * @return int
  */
 int client::send_frames(vector<frame *> frames) {
+  if (frames.empty()) { return 0; }
+
   if (!start_transmission()) { return 0; }
 
   // Envia um frame por vez
@@ -190,7 +193,16 @@ int client::send_message(vector<char> data, int type) {
 
   int messageSize = data.size();
   vector<frame *> frames;
-  frames = create_frames(data, type);
+
+  switch (type) {
+  case TEXTO:
+    frames = create_frames(data, type);
+    break;
+
+  case MIDIA:
+    frames = create_frames_midia(data);
+    break;
+  }
 
   return send_frames(frames);
 }
@@ -207,15 +219,12 @@ string client::calc_file_size(string fileName) {
 }
 
 vector<char> client::read_file(string fileName) {
-  fstream file;
+  ifstream file;
   file.open(fileName, ios::binary);
 
-  string teste;
   vector<char> fileData;
-  char c;
-  while ((file.get(c), file.eof() == false)) {
-    fileData.push_back(c);
-  }
+  for (char c; (file.read(&c, 1), file.eof()) == false; fileData.push_back(c))
+    ;
 
   file.close();
   return fileData;
@@ -226,49 +235,23 @@ vector<char> client::read_file(string fileName) {
  *
  */
 void client::send_file() {
+  vector<char> fileNameVector;
   string fileName;
+
   do {
-    cout << "Digite o nome do arquivo(maximo de " << TAM_DADOS - 4 << " char):\n";
+    cout << "Digite o nome do arquivo(maximo de " << TAM_DADOS
+         << " char):\n";
     getline(cin, fileName);
-  } while (fileName.size() > TAM_DADOS - 4);
+  } while (fileName.size() > TAM_DADOS);
 
-  // Envia o primeiro frame com o tamanho do arquivo
-  string fileSize = calc_file_size(fileName);
-  if (fileSize.empty()) { return; }
+  fileNameVector.insert(fileNameVector.begin(), fileName.begin(),
+                        fileName.end());
 
-  cout << "Tamanho do arquivo: " << fileSize << "\n";
-  cout << "Enviando tamanho do arquivo\n";
-  if (!send_message(vector<char>(fileSize.begin(), fileSize.end()), MIDIA)) {
-    cout << "Limite de timout, arquivo nao foi enviado\n";
+  if (!send_message(fileNameVector, MIDIA)) {
+    cout << "Falha ao enviar o arquivo\n";
     return;
   }
 
-  // Envia o segundo frame com o nome do arquivo
-  cout << "Enviando nome do arquivo\n";
-  string name = "NAME";
-  vector<char>fileNameVector(name.begin(), name.end());
-  fileNameVector.insert(fileNameVector.end(), fileName.begin(), fileName.end());
-
-  if (!send_message(fileNameVector, MIDIA))
-  {
-    cout << "Limite de timout, arquivo nao foi enviado\n";
-    return;
-  }
-  
-  cout << "Enviando arquivo\n";
-  vector<char> file = read_file(fileName);
-  if ( file.empty() )
-  {
-    cout << "Falha ao abrir o arquivo para leitura. Abortado\n";
-    return;
-  }
-
-  if (!send_message(file, DADOS))
-  {  
-    cout << "Limite de timout, arquivo nao foi enviado\n";
-    return;
-  }
-  
   cout << "Arquivo enviado com sucesso\n";
 }
 
@@ -287,6 +270,43 @@ void client::send_text(string message) {
 
   else
     cout << "Mensagem enviada com sucesso\n";
+}
+
+vector<frame *> client::create_frames_midia(vector<char> vectorName) {
+  vector<frame *> framesToSend;
+  vector<frame *> framesAux;
+
+  // Cria um vetor com o tamanho do arquivo
+  vector<char> vectorTam;
+  string fileName = string(vectorName.begin(), vectorName.end());
+  string fileSize = calc_file_size(fileName);
+  if (fileSize.empty()) { return vector<frame *>(); }
+  vectorTam.insert(vectorTam.begin(), fileSize.begin(), fileSize.end());
+
+  // Adiciona o tamanho no primeiro frame a ser enviado
+  framesAux = create_frames(vectorTam, MIDIA);
+  framesToSend.insert(framesToSend.end(), framesAux.begin(), framesAux.end());
+
+  // Adiciona o nome no segundo frame a ser enviado
+  framesAux = create_frames(vectorName, MIDIA);
+  framesToSend.insert(framesToSend.end(), framesAux.begin(), framesAux.end());
+
+  // Cria um vetor com os dados do arquivo
+  vector<char> vectorData = read_file(fileName);
+  if (vectorData.empty()) {
+    cout << "Falha ao abrir o arquivo para leitura\n";
+    return vector<frame *>();
+  }
+
+  // Adiciona os dados do arquivo
+  framesAux = create_frames(vectorData, DADOS);
+  framesToSend.insert(framesToSend.end(), framesAux.begin(), framesAux.end());
+
+  // Arruma a sequencia dos frames
+  for (int i = 0; i < framesToSend.size(); i++)
+    framesToSend[i]->set_seq(i%16);
+
+  return framesToSend;
 }
 
 /**
@@ -337,8 +357,8 @@ void client::print_help() {
   cout << "Comandos disponiveis:\n";
   cout << "help ou -h ou h ou HELP ou Help ou H ou ajuda ou Ajuda ou AJUDA\n";
   cout << "exit ou -e ou e ou EXIT ou Exit ou E ou sair ou Sair ou SAIR\n";
-  cout
-      << "send ou -s ou s ou SEND ou Send ou S ou enviar ou Enviar ou ENVIAR\n";
+  cout << "send ou -s ou s ou SEND ou Send ou S ou enviar ou Enviar ou "
+          "ENVIAR\n";
   cout << "para enviar uma mensagem, digite a mensagem e pressione enter\n";
 }
 
