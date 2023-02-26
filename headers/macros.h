@@ -4,6 +4,9 @@
 #define UC unsigned char
 #define UI unsigned int
 
+//tamanho da janela 
+#define TAM_JANELA 2
+
 // Macro que cria uma sequencia com o 1 deslocado "des" posicoes a direita
 #define MASKR(des) (1 << des)
 

@@ -48,11 +48,11 @@ private:
   bool string_has(string str, vector<string> strList);
   char string_cmd(string str);
   void print_help();
-  bool verify_ack(frame *received, frame *sent);
-  frame *receive_ack(frame *f);
+  bool verify_ack_nack(frame *received);
+  frame *receive_ack_nack();
   vector<frame *> create_frames(vector<char> data, int type);
   vector<frame *> create_frames_midia(vector<char> data);
-  int send_frame_socket(frame *f);
+  frame* send_frame_socket(frame *f);
   int start_transmission();
   int end_transmission();
   string calc_file_size(string fileName);
@@ -72,50 +72,52 @@ public:
 // ------------------------------ PRIVATE --------------------------------- //
 
 // Verifica se recebeu um ack valido
-frame *client::receive_ack(frame *f) {
-  frame *ack_res = NULL;
+frame *client::receive_ack_nack() {
+  frame *response = NULL;
 
   // se recebemos algo, e NÃO ẽ o ACK que estamos
   // esperando, continuamos tentando receber
   do {
-    ack_res = socket->receive_frame();
-    if (ack_res && ack_res->get_tipo() == ERRO) {
+    response = socket->receive_frame();
+    if (response && response->get_tipo() == ERRO) {
       cout << "Espaco insulficiente no destino\n";
       return NULL;
     }
-  } while (ack_res &&
-           !(verify_ack(ack_res, f) && ack_res->get_dado()[0] == f->get_seq()));
+  } while (response &&
+           !(verify_ack_nack(response)));
 
-  return ack_res;
+  return response;
 }
 
 // Solicita ao socket que envie um frame
-int client::send_frame_socket(frame *f) {
+frame* client::send_frame_socket(frame *f) {
   // Fica tentando enviar o frame até receber o ack
-  frame *ack_res = NULL;
+  frame *response = NULL;
   int retries = 0;
   do {
     // envia um frame da fila
     socket->send_frame(f);
-    ack_res = receive_ack(f);
+    response = receive_ack_nack();
+    if(!response)
+      return NULL;
     retries++;
-  } while (ack_res == NULL && retries < NUM_RETRIES);
+  } while (response->get_dado()[0] != f->get_seq() && retries < NUM_RETRIES);
 
-  if (ack_res == NULL && retries == NUM_RETRIES) {
+  if (response == NULL && retries == NUM_RETRIES) {
     cout << "Desisti de enviar\n";
-    return 0;
+    return NULL;
   }
 
   cout << "\tACK recebido:\n";
-  ack_res->imprime(HEX);
-  return 1;
+  response->imprime(HEX);
+  return response;
 }
 
 // Inicia a transmissao com o servidor
 int client::start_transmission() {
   cout << "\tIniciando transmissao\n";
   frame *ini = new frame(INIT, 0, vector<char>(1, 0));
-  int enviado = send_frame_socket(ini);
+  frame* enviado = send_frame_socket(ini);
   if (!enviado) {
     cout << "\tFalha ao iniciar a transmissao\n";
     return 0;
@@ -129,7 +131,7 @@ int client::start_transmission() {
 int client::end_transmission() {
   cout << "\tEncerrando a transmissao\n";
   frame *end = new frame(FIMT, 0, vector<char>(1, 0));
-  int enviado = send_frame_socket(end);
+  frame* enviado = send_frame_socket(end);
   if (!enviado) {
     cout << "\tFalha ao encerrar a transmissao\n";
     return 0;
@@ -146,23 +148,57 @@ int client::end_transmission() {
  * @return int
  */
 int client::send_frames(vector<frame *> frames) {
+
   if (frames.empty()) { return 0; }
 
   if (!start_transmission()) { return 0; }
 
-  // Envia um frame por vez
-  for (size_t i = 0; i < frames.size(); i++) {
-
-    cout << "\tEnviando frame\n";
-    frames[i]->imprime(DEC);
-
-    int enviado = send_frame_socket(frames[i]);
-    if (!enviado) {
-      cout << "\tFalha ao enviar o frame\n";
-      return 0;
+  //Cria a fila de frames
+  queue<int> janela;
+  int frameCounter;
+  int iniJanela = 0;
+  while (iniJanela < frames.size()) {
+    //manda todos os frames de uma vez só
+    for(frameCounter = 0; frameCounter < TAM_JANELA; frameCounter++){
+      if(iniJanela+frameCounter == frames.size())
+        break;
+      janela.push(frameCounter);
+      
+      cout << "\tEnviando frame\n";
+      frames[iniJanela]->imprime(HEX);
+      
+      if(socket->send_frame(frames[iniJanela+frameCounter]) >= 0)
+        cout << "\tFrame enviado com sucesso\n";
     }
 
-    cout << "\tFrame enviado com sucesso\n";
+    for(int i = 0; i<TAM_JANELA; i++){
+      frame* res = NULL;
+      int retries = 0;
+      do {
+        res = receive_ack_nack();
+        retries++;
+      } while (res == NULL && retries < NUM_RETRIES);
+
+      if(res == NULL && retries == NUM_RETRIES){
+        break;
+      }
+      
+      if(res->get_tipo() == NACK && res->get_dado()[0] == janela.front()){
+        iniJanela += res->get_dado()[0];
+        janela.pop();
+        break;
+      }
+
+      if(res->get_tipo() == ACK && res->get_dado()[0] == janela.front()){
+        iniJanela++;
+        janela.pop();
+      }
+      else{
+        i--;
+      }      
+    }
+    //apaga a janela
+    while(! janela.empty()) janela.pop();
   }
 
   if (!end_transmission()) { return 0; }
@@ -179,8 +215,8 @@ int client::send_frames(vector<frame *> frames) {
  * @return true
  * @return false
  */
-bool client::verify_ack(frame *received, frame *sent) {
-  return (received->get_tipo() == ACK && received->chk_crc8());
+bool client::verify_ack_nack(frame *received) {
+  return ((received->get_tipo() == ACK || received->get_tipo() == NACK) && received->chk_crc8());
 }
 
 /**
@@ -304,7 +340,7 @@ vector<frame *> client::create_frames_midia(vector<char> vectorName) {
 
   // Arruma a sequencia dos frames
   for (int i = 0; i < framesToSend.size(); i++)
-    framesToSend[i]->set_seq(i%16);
+    framesToSend[i]->set_seq(i%TAM_JANELA);
 
   return framesToSend;
 }
