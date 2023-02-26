@@ -47,10 +47,11 @@ private:
   frame *receive_frame_socket();
   int receive_valid_frame(frame **f);
   unsigned long chk_available_size();
-  long long receive_file_size(frame *f);
+  int receive_file_size(frame *f);
   void start_receveing_message();
   bool create_received_dir();
-  bool receive_file_name();
+  string receive_file_name();
+  int receive_file_data(string fileName);
 
 public:
   // ------- Construtores ------ //
@@ -138,16 +139,19 @@ unsigned long server::chk_available_size() {
 }
 
 // Recebe o frame com o tamanho do arquivo
-long long server::receive_file_size(frame *f) {
+int server::receive_file_size(frame *f) {
+  if ( !strncmp(f->get_dado(), "NAME", 4)) { return 0; }
+
   unsigned long availSize = chk_available_size();
   if (availSize == -1) { return -1; }
 
-  unsigned long fileSize = stoi(f->get_dado());
+  cout << "frame file size:" << f->get_dado() << "\n";
+  int fileSize = stoi(f->get_dado());
 
   if (fileSize > availSize * 0.9) {
     cout << "Tamanho do arquivo muito grande, abortado\n";
     // send_error();
-    return -1;
+    return 0;
   }
 
   cout << "Espaco suficiente em disco\n";
@@ -156,43 +160,45 @@ long long server::receive_file_size(frame *f) {
 
 bool server::create_received_dir() {
 
-  //check if the directory exists
+  // check if the directory exists
   struct stat info;
   if (stat(FILE_DESTINATION, &info) == 0 && (info.st_mode & S_IFDIR)) {
-    cout << "Diretorio ja existe\n";  
+    cout << "Diretorio ja existe\n";
     return true;
   }
 
-  //create the directory
+  // create the directory
   if (mkdir(FILE_DESTINATION, 0700) == -1) {
     cout << "Erro ao criar o diretorio\n";
     return false;
-  } 
-    
+  }
+
   cout << "Diretorio criado com sucesso\n";
   return true;
 }
 
-bool server::receive_file_name() { 
+string server::receive_file_name() {
   frame *fReceive;
+  int lastSeq = -1;
 
   // Aguarda receber um frame do tipo midia com o nome do arquivo
   do {
-    if (!receive_valid_frame(&fReceive))          
-    { 
-      cout << "Timeout, falha ao receber o nome do arquivo. Abortado\n";
-      return false; 
-    }
-
+    if (!receive_valid_frame(&fReceive)) { continue; }
     if (fReceive->get_tipo() != MIDIA) { continue; }
+    if (strncmp(fReceive->get_dado(), "NAME", 4)) { continue; }
 
-  } while ( !strncmp(fReceive->get_dado(), "NAME", 4) );
+
+    if (fReceive->get_seq() == lastSeq) { continue; }
+    lastSeq = fReceive->get_seq();
+
+  } while (fReceive->get_tipo() != FIMT);
+
   
   cout << "Nome do arquivo recebido com sucesso\n";
-  return true;
- }
+  cout << "Nome do arquivo: " << fReceive->get_dado()+4 << "\n";
 
-
+  return string(fReceive->get_dado()+4);
+}
 
 // void server::receive_file_data(){
 //   vector<frame *> framesMidia;
@@ -200,11 +206,28 @@ bool server::receive_file_name() {
 
 // };
 
+int server::receive_file_data(string fileName) {
+  frame *fReceive;
+  int lastSeq = -1;
+  int retries = 0;
+
+  // Aguarda receber um frame do tipo midia com o nome do arquivo
+  do {
+    if (!receive_valid_frame(&fReceive)) { continue; }
+    if (fReceive->get_tipo() != MIDIA) { continue; }
+    if (strncmp(fReceive->get_dado(), "NAME", 4)) { continue; }
+  } while( fReceive->get_tipo() != FIMT);
+};
+
 void server::receive_midia(frame *f) {
-  if ( !create_received_dir() )   { return; }
-  if ( !receive_file_size(f)  )   { return; }
-  if ( !receive_file_name()   )   { return; }
-  // receive_file_data();
+  if (!create_received_dir()) { return; }
+  if (!receive_file_size(f))  { return; }
+
+  string fileName = receive_file_name();
+
+  if (fileName.size() == 0)   { return; }
+
+  if (!receive_file_data(fileName)) { return; }
 }
 
 // Recebe um frame do cliente
@@ -246,7 +269,7 @@ int server::receive_valid_frame(frame **f) {
 }
 
 void server::start_receveing_message() {
-  int endTransmission = 0;
+  int continueTransmission = 1;
 
   frame *f;
   do {
@@ -257,18 +280,18 @@ void server::start_receveing_message() {
     switch (frameType) {
     case TEXTO:
       receive_text(f);
-      endTransmission = 1;
+      continueTransmission = 0;
       break;
 
     case MIDIA:
       receive_midia(f);
-      endTransmission = 1;
+      continueTransmission = 0;
       break;
 
     default:
       break;
     }
-  } while (!endTransmission);
+  } while (continueTransmission);
 }
 
 // ------------------------------- PUBLIC --------------------------------- //

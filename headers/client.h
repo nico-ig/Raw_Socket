@@ -257,15 +257,15 @@ void client::send_file() {
     return;
   }
   
-  //  cout << "Enviando arquivo\n";
-  //  vector<char> file = read_file(fileName);
-  //  if (file.empty() || !send_message(file, DADOS))
-  //  {
-  //    cout << "Limite de timout, arquivo nao foi enviado\n";
-  //    return;
-  //  }
-  //
-  //  cout << "Arquivo enviado com sucesso\n";
+  cout << "Enviando arquivo\n";
+  vector<char> file = read_file(fileName);
+  if (file.empty() || !send_message(file, DADOS))
+  {  
+    cout << "Limite de timout, arquivo nao foi enviado\n";
+    return;
+  }
+  
+  cout << "Arquivo enviado com sucesso\n";
 }
 
 /**
