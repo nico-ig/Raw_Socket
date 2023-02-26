@@ -122,9 +122,7 @@ int conexao::send_frame(frame *f) {
     cout << hex << (int(bufferSend[i]) & 0xff) << " ";
   }
   cout << "\n";
-  if (byteSend < 0) {
-    cout << "Erro no sendto" << byteSend << "\n";
-  }
+  if (byteSend < 0) { cout << "Erro no sendto" << byteSend << "\n"; }
 
   return byteSend;
 }
@@ -144,8 +142,7 @@ int conexao::add_escapes(char *f, char *out) {
   for (size_t i = 0; i < sizeof(frame); i++) {
     out[j++] = f[i];
 
-    if (f[i] == 0x88 || f[i] == 0x81)
-      out[j++] = 0xFF;
+    if (f[i] == 0x88 || f[i] == 0x81) out[j++] = 0xFF;
   }
 
   return j;
@@ -156,8 +153,7 @@ int conexao::remove_escapes(char *f, char *out) {
   for (size_t i = 0; j < sizeof(frame); i++) {
     out[j++] = f[i];
 
-    if (f[i] == 0x88 || f[i] == 0x81)
-      i++;
+    if (f[i] == 0x88 || f[i] == 0x81) i++;
   }
 
   return j;
