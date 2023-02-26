@@ -208,18 +208,16 @@ string client::calc_file_size(string fileName) {
 
 vector<char> client::read_file(string fileName) {
   fstream file;
-  file.open(fileName, ios::in);
+  file.open(fileName, ios::binary);
 
   string teste;
   vector<char> fileData;
   char c;
   while ((file.get(c), file.eof() == false)) {
     fileData.push_back(c);
-    teste.push_back(c);
   }
 
   file.close();
-  cout << "vetor criado: " << teste << "\n";
   return fileData;
 }
 
@@ -259,7 +257,13 @@ void client::send_file() {
   
   cout << "Enviando arquivo\n";
   vector<char> file = read_file(fileName);
-  if (file.empty() || !send_message(file, DADOS))
+  if ( file.empty() )
+  {
+    cout << "Falha ao abrir o arquivo para leitura. Abortado\n";
+    return;
+  }
+
+  if (!send_message(file, DADOS))
   {  
     cout << "Limite de timout, arquivo nao foi enviado\n";
     return;

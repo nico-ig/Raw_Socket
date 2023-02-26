@@ -115,7 +115,7 @@ void server::receive_text(frame *f) {
   int lastSeq = f->get_seq();
 
   do {
-    if (!receive_valid_frame(&f)) { continue; }
+    if (!receive_valid_frame(&f)) { return; }
     if (f->get_tipo() != TEXTO) { continue; }
     if (f->get_seq() == lastSeq) { continue; }
 
@@ -183,7 +183,7 @@ string server::receive_file_name() {
 
   // Aguarda receber um frame do tipo midia com o nome do arquivo
   do {
-    if (!receive_valid_frame(&fReceive)) { continue; }
+    if (!receive_valid_frame(&fReceive)) { return string {}; }
     if (fReceive->get_tipo() != MIDIA) { continue; }
     if (strncmp(fReceive->get_dado(), "NAME", 4)) { continue; }
 
@@ -200,24 +200,34 @@ string server::receive_file_name() {
   return string(fReceive->get_dado()+4);
 }
 
-// void server::receive_file_data(){
-//   vector<frame *> framesMidia;
-//   receive
-
-// };
-
 int server::receive_file_data(string fileName) {
-  frame *fReceive;
-  int lastSeq = -1;
-  int retries = 0;
 
-  // Aguarda receber um frame do tipo midia com o nome do arquivo
+  // Abre o arquivo para escrita
+  ofstream file;
+  file.open(FILE_DESTINATION+"/"+fileName);
+  if (!file.is_open()) {
+    cout << "Falha ao criar o arquivo. Abortado\n";
+    return 0;
+  }
+
+  cout << "Arquivo criado com sucesso\n";
+
+  int lastSeq = -1; 
+  frame *f;
+
   do {
-    if (!receive_valid_frame(&fReceive)) { continue; }
-    if (fReceive->get_tipo() != MIDIA) { continue; }
-    if (strncmp(fReceive->get_dado(), "NAME", 4)) { continue; }
-  } while( fReceive->get_tipo() != FIMT);
-};
+    if (!receive_valid_frame(&f)) { return 0; }
+    if (f->get_tipo() != DADOS)   { continue; }
+    if (f->get_seq() == lastSeq)  { continue; }
+
+    lastSeq = f->get_seq();
+    file.write(f->get_dado(), f->get_tam());
+  } while (f->get_tipo() != FIMT);
+
+  cout << "Arquivo recebido com sucesso\n";
+  file.close();
+  return 1;
+}
 
 void server::receive_midia(frame *f) {
   if (!create_received_dir()) { return; }
@@ -227,7 +237,7 @@ void server::receive_midia(frame *f) {
 
   if (fileName.size() == 0)   { return; }
 
-  if (!receive_file_data(fileName)) { return; }
+  receive_file_data(fileName);
 }
 
 // Recebe um frame do cliente
