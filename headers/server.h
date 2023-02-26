@@ -2,6 +2,7 @@
 #ifndef _SERVER_
 #define _SERVER_
 
+#include <arpa/inet.h>
 #include <bits/stdc++.h>
 #include <fstream>
 #include <iostream>
@@ -15,10 +16,9 @@
 #include <string.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
+#include <sys/stat.h> // For stat() and mkdir() functions
 #include <sys/statvfs.h>
 #include <sys/types.h>
-
-#include <arpa/inet.h>
 
 // include local
 #include "conexao.h"
@@ -49,6 +49,8 @@ private:
   unsigned long chk_available_size();
   long long receive_file_size(frame *f);
   void start_receveing_message();
+  bool create_received_dir();
+  bool receive_file_name();
 
 public:
   // ------- Construtores ------ //
@@ -152,10 +154,56 @@ long long server::receive_file_size(frame *f) {
   return 1;
 }
 
+bool server::create_received_dir() {
+
+  //check if the directory exists
+  struct stat info;
+  if (stat(FILE_DESTINATION, &info) == 0 && (info.st_mode & S_IFDIR)) {
+    cout << "Diretorio ja existe\n";  
+    return true;
+  }
+
+  //create the directory
+  if (mkdir(FILE_DESTINATION, 0700) == -1) {
+    cout << "Erro ao criar o diretorio\n";
+    return false;
+  } 
+    
+  cout << "Diretorio criado com sucesso\n";
+  return true;
+}
+
+bool server::receive_file_name() { 
+  frame *fReceive;
+
+  // Aguarda receber um frame do tipo midia com o nome do arquivo
+  do {
+    if (!receive_valid_frame(&fReceive))          
+    { 
+      cout << "Timeout, falha ao receber o nome do arquivo. Abortado\n";
+      return false; 
+    }
+
+    if (fReceive->get_tipo() != MIDIA) { continue; }
+
+  } while ( !strncmp(fReceive->get_dado(), "NAME", 4) );
+  
+  cout << "Nome do arquivo recebido com sucesso\n";
+  return true;
+ }
+
+
+
+// void server::receive_file_data(){
+//   vector<frame *> framesMidia;
+//   receive
+
+// };
+
 void server::receive_midia(frame *f) {
-  // if ( !create_received_dir)   { return; }
-  if (!receive_file_size(f)) { return; }
-  // if ( !receive_file_name()    { return; }
+  if ( !create_received_dir() )   { return; }
+  if ( !receive_file_size(f)  )   { return; }
+  if ( !receive_file_name()   )   { return; }
   // receive_file_data();
 }
 

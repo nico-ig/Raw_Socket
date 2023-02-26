@@ -230,9 +230,9 @@ vector<char> client::read_file(string fileName) {
 void client::send_file() {
   string fileName;
   do {
-    cout << "Digite o nome do arquivo(maximo de " << TAM_DADOS << " char):\n";
+    cout << "Digite o nome do arquivo(maximo de " << TAM_DADOS - 4 << " char):\n";
     getline(cin, fileName);
-  } while (fileName.size() > TAM_DADOS);
+  } while (fileName.size() > TAM_DADOS - 4);
 
   // Envia o primeiro frame com o tamanho do arquivo
   string fileSize = calc_file_size(fileName);
@@ -246,13 +246,17 @@ void client::send_file() {
   }
 
   // Envia o segundo frame com o nome do arquivo
-  //  cout << "Enviando nome do arquivo\n";
-  //  if (!send_message(vector<char>(fileName.begin(), fileName.end()), MIDIA))
-  //  {
-  //    cout << "Limite de timout, arquivo nao foi enviado\n";
-  //    return;
-  //  }
-  //
+  cout << "Enviando nome do arquivo\n";
+  string name = "NAME";
+  vector<char>fileNameVector(name.begin(), name.end());
+  fileNameVector.insert(fileNameVector.end(), fileName.begin(), fileName.end());
+
+  if (!send_message(fileNameVector, MIDIA))
+  {
+    cout << "Limite de timout, arquivo nao foi enviado\n";
+    return;
+  }
+  
   //  cout << "Enviando arquivo\n";
   //  vector<char> file = read_file(fileName);
   //  if (file.empty() || !send_message(file, DADOS))
