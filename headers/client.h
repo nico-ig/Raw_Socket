@@ -92,7 +92,7 @@ frame *client::receive_ack_nack() {
 // Solicita ao socket que envie um frame
 frame* client::send_frame_socket(frame *f) {
   // Fica tentando enviar o frame até receber o ack
-  frame *response = NULL;
+  frame *response = new frame();
   int retries = 0;
   do {
     // envia um frame da fila
@@ -117,7 +117,8 @@ frame* client::send_frame_socket(frame *f) {
 int client::start_transmission() {
   cout << "\tIniciando transmissao\n";
   frame *ini = new frame(INIT, 0, vector<char>(1, 0));
-  frame* enviado = send_frame_socket(ini);
+  frame* enviado = new frame();
+  enviado = send_frame_socket(ini);
   if (!enviado) {
     cout << "\tFalha ao iniciar a transmissao\n";
     return 0;
