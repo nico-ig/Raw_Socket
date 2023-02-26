@@ -152,9 +152,10 @@ int client::send_frames(vector<frame *> frames) {
 
   if (frames.empty()) { return 0; }
 
+  cout << "\tstart transmission\n";
   if (!start_transmission()) { return 0; }
-
-  //Cria a fila de frames
+  cout << "\t ->>> started transmission <<< -\n";
+  // Cria a fila de frames
   queue<int> janela;
   int frameCounter;
   int iniJanela = 0;
@@ -172,7 +173,7 @@ int client::send_frames(vector<frame *> frames) {
         cout << "\tFrame enviado com sucesso\n";
     }
 
-    for(int i = 0; i<TAM_JANELA; i++){
+    for (int i = 0; i < min((int)TAM_JANELA, (int)frames.size()); i++) {
       frame* res = NULL;
       int retries = 0;
       do {
@@ -196,7 +197,7 @@ int client::send_frames(vector<frame *> frames) {
       }
       else{
         i--;
-      }      
+      }
     }
     //apaga a janela
     while(! janela.empty()) janela.pop();
