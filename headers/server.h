@@ -376,31 +376,103 @@ int server::receive_valid_frame(frame **f) {
   return 1;
 }
 
+queue<frames *> server::receive_frames_window(int lastSeq)
+{
+  queue<frames *> frames_queue;
+  frame *f;
+  retries = 0;
+
+  do {
+    f = receive_frame_socket();
+    if ( f == NULL ) { continue; }
+    
+    retries++;
+
+    int tipo = f->get_tipo();
+
+    // Primeiro frame a ser recebido, seta o tipo
+    if ( lastSeq == -1 ) 
+    {
+      // Ignora os frames perdidos na linha
+      if ( (tipo != MIDIA || tipo != TEXTO) && f->get_seq() != 0 ) {continue;}
+      tipoReceivingFrames = f->get_tipo();
+      frames_queue.push(f);
+      lastSeq = 0;
+      retries = 0;
+      continue; }
+
+    // Adiciona o frame de fim de transmissao
+    if ( f->get_tipo() == FIMT ) 
+    {
+      frames_queue.push(f);
+      return frames_queue;
+    }
+
+    // Ignora se o frame nao for do tipo midia e esteja recebendo midia
+    if ( f->get_tipo() == MIDIA && tipoReceivingFrames == MIDIA )
+    {
+      // Ignora se for um frame do tipo midia que nao e o segundo da sequencia
+      if ( lastSeq != 0 || (TAM_JANELA > 1 && f->get_seq() != 1)) { continue; }
+
+      // Se for o segundo frame do tipo midia, muda o tipo esperado
+      tipoReceivingFrames = DADOS;
+      frames_queue.push(f);
+      lastSeq = 1;
+      retries = 0;
+      continue;
+    }
+
+    // Recebe os frames de dados de um arquivo
+    if ( tipoReceivingFrames == DADOS && f->get_tipo() == DADOS )
+    {
+      if ( !verify_seq(f->get_seq(), lastSeq) ) { continue; }
+      frames_queue.push(f);
+      retries = 0;
+      continue;
+    }
+
+    // Recebe os frames de uma mensagem
+    if ( tipoReceivingFrames == TEXTO && f->get_tipo() == TEXTO )
+    {
+      if ( !verify_seq(f->get_seq(), lastSeq) ) { continue; }
+      frames_queue.push(f);
+      retries = 0;
+      continue;
+    }
+
+  } while ( (f == NULL && retries < NUM_RETRIES) || frames_queue.size() < TAM_JANELA );
+
+  return frames_queue;
+}
+
 void server::start_receveing_message() {
   int continueTransmission = 1;
 
   cout << "Recebendo frames\n";
   frame *f;
+  lastSeq = -1;
   do {
-    if (!receive_valid_frame(&f)) { return; }
-    if (!f) { return; }
-    int frameType = f->get_tipo();
+    queue<frames *> frames = receive_frames_window(lastSeq);
 
-    switch (frameType) {
-    case TEXTO:
-      receive_text(f);
-      continueTransmission = 0;
-      break;
-
-    case MIDIA:
-      receive_midia(f);
-      continueTransmission = 0;
-      break;
-
-    default:
-      break;
-    }
-
+//    if (!receive_valid_frame(&f)) { return; }
+//    if (!f) { return; }
+//    int frameType = f->get_tipo();
+//
+//    switch (frameType) {
+//    case TEXTO:
+//      receive_text(f);
+//      continueTransmission = 0;
+//      break;
+//
+//    case MIDIA:
+//      receive_midia(f);
+//      continueTransmission = 0;
+//      break;
+//
+//    default:
+//      break;
+//    }
+//
   } while (continueTransmission);
 }
 
