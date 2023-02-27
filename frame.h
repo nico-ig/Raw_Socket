@@ -160,6 +160,10 @@ void frame::imprime_hex()
   printf("Dado:");
   for ( int i = 0; i < tam; i++ ) { printf(" 0x%X", dado[i]); }
   printf("\n");
+  printf("Dado: ");
+  for ( int i = 0; i < tam; i++ ) { printf("%c", dado[i]); }
+  printf("\n");
+
   printf("Crc8: 0x%X\n", crc8);
 }
 

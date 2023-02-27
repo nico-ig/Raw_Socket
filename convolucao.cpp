@@ -278,18 +278,19 @@ char *deconv(uint8_t *msg, int tamBytes)
     conv_byte(msg[byte], byte*4);
   
   // Imprime a trelica
-//  cout << "   ";
-//  for ( int i = 0; i < 8; i++ )
-//    printf("%2d ", i);
-//  cout << "\n";
-//
-//  for ( int j = 0; j < 4; j++ )
-//  {
-//    printf("%2d ", j);
-//    for ( int i = 0; i < 8; i++ )
-//      printf("%2d ", trelica[j][i]);
-//    cout << "\n";
-//  }
+  cout << "Trelica: \n";
+  cout << "     ";
+  for ( int i = 0; i < 8; i++ )
+    printf("0x%02X ", i);
+  cout << "\n";
+
+  for ( int j = 0; j < 4; j++ )
+  {
+    printf("0x%02X ", j);
+    for ( int i = 0; i < 8; i++ )
+      printf("0x%02X ", trelica[j][i] & 0xFF);
+    cout << "\n";
+  }
 
   // Corrige os erros e deconvoluciona a msg
   int ini = find_last_state();
