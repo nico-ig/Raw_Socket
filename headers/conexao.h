@@ -112,13 +112,13 @@ int conexao::send_frame(frame *f) {
   int timeout = 0;
 
   int byteSend = send(device, bufferSend, sizeof(frame) * 2, 0);
-  printf("send %d: ", byteSend);
+  // printf("send %d: ", byteSend);
   for (int i = 0; i < byteSend; i++) {
-    cout << hex << (int(bufferSend[i]) & 0xff) << " ";
+    // cout << hex << (int(bufferSend[i]) & 0xff) << " ";
   }
-  cout << "\n";
+  // cout << "\n";
   if (byteSend < 0) {
-    cout << "Erro no sendto" << byteSend << "\n";
+    // cout << "Erro no sendto" << byteSend << "\n";
     return -1;
   }
 

@@ -126,7 +126,7 @@ int server::send_ack(frame *fReceive) {
     return -1;
   }
 
-  cout << "ACK " << (int)fReceive->get_seq() << " enviado\n";
+  // cout << "ACK " << (int)fReceive->get_seq() << " enviado\n";
 
   return ackSent;
 }
@@ -262,7 +262,10 @@ string server::create_file_destination(string fileName) {
        << fileDestination << BOLDYELLOW
        << ". Digite novo nome ou enter para continuar: " << RESET;
   string newDestination = "";
+  // clear line cin
+  cin.ignore(numeric_limits<streamsize>::max(), '\n');
   getline(cin, newDestination);
+
   if (!newDestination.empty() && newDestination != "\n") {
     fileDestination = newDestination;
   }
@@ -337,7 +340,7 @@ frame *server::receive_frame_socket() {
   } while (fReceive == NULL && retries < NUM_RETRIES);
 
   if (fReceive == NULL && retries == NUM_RETRIES) {
-    cout << "Desisti de receber o frame\n"; //->log
+    // cout << "Desisti de receber o frame\n"; //->log
     return NULL;
   }
 
@@ -349,16 +352,16 @@ queue<frame *> server::receive_frames_window(int lastSeq) {
   frame *f;
 
   do {
-    cout << "Recebendo frame\n";
+    // cout << "Recebendo frame\n";
     if (!(f = receive_frame_socket())) { break; }
-    cout << "Frame recebido:\n";
+    // cout << "Frame recebido:\n";
 
     int tipo = f->get_tipo();
-    f->imprime(DEC);
+    // f->imprime(DEC);
 
     // Adiciona o frame de fim de transmissao
     if (tipo == FIMT) {
-      cout << "Frame FIMT recebido\n";
+      // cout << "Frame FIMT recebido\n";
       frames_queue.push(f);
       break;
     }
@@ -439,8 +442,8 @@ void server::start_receveing_message() {
       }
 
       // cout << "Frame recebido: \n"; ->log
-      f->imprime(DEC);
-      cout << "\n";
+      // f->imprime(DEC);
+      // cout << "\n";
 
       int tipo = f->get_tipo();
       int tam = f->get_tam();
@@ -448,7 +451,7 @@ void server::start_receveing_message() {
 
       switch (tipo) {
       case FIMT:
-        cout << "Encerrou a transmissao\n";
+        // cout << "Encerrou a transmissao\n";
         continueTransmission = 0;
         break;
 
@@ -494,7 +497,7 @@ void server::start_receveing_message() {
       //   cout << "ACK " << (int)f_answer->get_dado()[0] << " enviado\n"; ->log
     }
 
-    cout << "Todos os ACKs e NACKs foram enviados\n";
+    // cout << "Todos os ACKs e NACKs foram enviados\n";
 
   } while (continueTransmission);
 

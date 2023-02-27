@@ -32,6 +32,7 @@ private:
   int soquete;
   vector<frame *> framesMidia;
   conexao *socket;
+  ofstream *log_client;
 
   // ---------- Funcoes -------- //
   int send_frames(vector<frame *> frames);
@@ -50,6 +51,7 @@ private:
   int end_transmission();
   string calc_file_size(string fileName);
   vector<char> read_file(string fileName);
+
 
 public:
   // --------- Dados ---------- //
@@ -125,11 +127,11 @@ int client::start_transmission() {
 
 // Encerra a transmissao com o servidor
 int client::end_transmission() {
-  cout << "\tEncerrando a transmissao\n"; // ->log
+  // cout << "\tEncerrando a transmissao\n"; // ->log
   frame *end = new frame(FIMT, 0, vector<char>(1, 0));
   frame *enviado = send_frame_socket(end);
   if (!enviado) {
-    cout << "\tFalha ao encerrar a transmissao\n"; // ->log
+    // cout << "\tFalha ao encerrar a transmissao\n"; // ->log
     return 0;
   }
 
@@ -167,8 +169,8 @@ int client::send_frames(vector<frame *> frames) {
       if (iniJanela + frameCounter == frames.size()) { break; }
       janela.push((iniJanela + frameCounter) % 16);
 
-      cout << "\tEnviando frame: " << iniJanela + frameCounter << "\n"; 
-      frames[iniJanela + frameCounter]->imprime(DEC);
+      // cout << "\tEnviando frame: " << iniJanela + frameCounter << "\n"; 
+      // frames[iniJanela + frameCounter]->imprime(DEC);
     
       if (socket->send_frame(frames[iniJanela + frameCounter]) == -1) {
         // cout << "Falha ao enviar o frame\n"; ->log
@@ -180,7 +182,7 @@ int client::send_frames(vector<frame *> frames) {
 
     // Recebe a resposta do servidor
     while (!janela.empty()) {
-      cout << "Janela size: " << janela.size() << "\n";
+      // cout << "Janela size: " << janela.size() << "\n";
       frame *res = NULL;
       int retries = 0;
 
@@ -194,9 +196,9 @@ int client::send_frames(vector<frame *> frames) {
          
          break; }
 
-      cout << "Resposta recebida\n";
-      cout << "Numero ack/nack: " << (int)res->get_dado()[0] << " ---- "
-           << "Janela front: " << janela.front() << "\n";
+      // cout << "Resposta recebida\n";
+      // cout << "Numero ack/nack: " << (int)res->get_dado()[0] << " ---- "
+      //      << "Janela front: " << janela.front() << "\n";
 
       if (res->get_tipo() == NACK && res->get_dado()[0] == janela.front()) {
         // cout << "NACK " << (int)res->get_dado()[0] << " recebido\n"; ->log
@@ -214,7 +216,7 @@ int client::send_frames(vector<frame *> frames) {
       }
 
       if (res->get_tipo() == ACK && res->get_dado()[0] == janela.front()) {
-        cout << "ACK " << (int)res->get_dado()[0] << " recebido\n";
+        // cout << "ACK " << (int)res->get_dado()[0] << " recebido\n";
         iniJanela++;
         janela.pop();
       }
@@ -225,7 +227,7 @@ int client::send_frames(vector<frame *> frames) {
     //   janela.pop();
   }
 
-  cout << "\tTerminou de enviar todos os frames\n"; //->log
+  // cout << "\tTerminou de enviar todos os frames\n"; //->log
   return 1;
 }
 
@@ -431,6 +433,13 @@ void client::print_help() {
 
 void client::run() {
   int i;
+  log_client = new ofstream("log_client.txt");
+  log_client->open("log_client.txt", ios::out | ios::app);
+  if (!log_client->is_open()) {
+    cout<< BOLDRED << "Falha ao abrir o arquivo de log\n";
+    exit(1);
+  }
+  log_client->write("Inicio sessao com" + soquete, 100);
   print_help();
   while (true) {
     cout << BOLDYELLOW << "\nDigite um comando ou mensagem:\n" << RESET;
@@ -461,6 +470,7 @@ void client::run() {
       break;
     }
   }
+  log_client->close();
 }
 
 #endif
