@@ -174,7 +174,6 @@ int client::send_frames(vector<frame *> frames) {
 
     // Recebe a resposta do servidor
     while ( !janela.empty() ) {
-    //for (int i = 0; i < min((int)TAM_JANELA, (int)frames.size()); i++) {
       frame *res = NULL;
       int retries = 0;
 
@@ -201,10 +200,6 @@ int client::send_frames(vector<frame *> frames) {
         iniJanela++;
         janela.pop();
       }
-
-      //else {
-      //  i--;
-      //}
     }
 
     // apaga a janela
