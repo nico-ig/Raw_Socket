@@ -21,8 +21,9 @@
 #include <sys/types.h>
 
 // include local
-#include "conexao.h"
 #include "frame.h"
+#include "macros.h"
+#include "conexao.h"
 
 #define FILE_DESTINATION "./received"
 
@@ -41,18 +42,19 @@ private:
 
   // ---------- Funcoes -------- //
 
-  frame *create_ack_nack(int tipo, int seq);
-  int send_nack(frame *fReceive);
-  int send_ack(frame *fReceive);
-  bool verify_seq(int seq, int lastSeq);
+  frame*    create_ack_nack     (int tipo, int seq);
+  int       send_nack           (frame *fReceive);
+  int       send_ack            (frame *fReceive);
+  bool      verify_seq          (int seq, int lastSeq);
+  int       next_tipo_midia     (frame *f);
+  bool      create_received_dir ();
+  UL        chk_available_size  ();
+  int       receive_file_size   (frame *f);
+  ofstream  create_file         (string fileName);
+  int       receive_midia       (frame *f);
   //void send_confirm(frame *fReceive);
   //void receive_text(frame *f);
-  //void receive_midia(frame *f);
   //int receive_valid_frame(frame **f);
-  //unsigned long chk_available_size();
-  //int receive_file_size(frame *f);
-  //bool create_received_dir();
-  //string receive_file_name();
   //int receive_file_data(string fileName);
   //bool verify_crc8(frame *f);
   frame *receive_frame_socket();
@@ -149,6 +151,15 @@ bool server::verify_seq(int seq, int lastSeq) {
   if (seq != lastSeq + 1) { return false; }
   return true;
 }
+
+int server::next_tipo_midia(frame *f) {
+  if ( f->get_tipo() != MIDIA ) { return -1; }
+  if ( f->get_seq() == 0 )      { return MIDIA; }
+  if ( f->get_seq() == 1 )      { return DADOS; }
+
+  return -1;
+}
+
 //// Recebe uma mensagem em forma de texto
 //void server::receive_text(frame *f) {
 //  string textoReceive;
@@ -168,139 +179,59 @@ bool server::verify_seq(int seq, int lastSeq) {
 //}
 //
 //// Verifica o espaco disponivel em disco
-//unsigned long server::chk_available_size() {
-//  struct statvfs st;
-//  if (statvfs(FILE_DESTINATION, &st) == -1) {
-//    cout << "Erro no statvfs, abortado\n";
-//    // send_error();
-//    return -1;
-//  }
-//
-//  return st.f_bsize * st.f_bavail;
-//}
-//
+
+UL server::chk_available_size() {
+  struct statvfs st;
+  if (statvfs(FILE_DESTINATION, &st) == -1) {
+    cout << "Erro no statvfs, abortado\n";
+    // send_error();
+    return -1;
+  }
+
+  return st.f_bsize * st.f_bavail;
+}
+
 //// Recebe o frame com o tamanho do arquivo
-//int server::receive_file_size(frame *f) {
-//
-//  /*
-//     > verifica a sequencia do frame e o tipo
-//     > se o frame nao for a sequencia esperada, envia um ack(0) e espera receber
-//     a sequencia esperada > se o frame for o esperado, verifica o crc8 > se o
-//     crc estiver certo, envia um ack e continua > se estiver errado, envia um
-//     nack e espera receber o proximo frame
-//  */
-//  cout << "Recebendo tamanho do frame\n";
-//  do {
-//    if ( f->get_tipo() != MIDIA ) { continue; }
-//    if ( f->get_seq() == 0 && verify_crc8(f) ) { break; }
-//    
-//    if ( f->get_seq() != 0 )
-//      cout << "Sequencia errada\n";
-//    else
-//      cout << "Crc errado\n";
-//
-//    cout << "Aguardando frame\n";
-//
-//    f = receive_frame_socket();
-//    if (!f) { return 0; }
-//
-//    cout << "Frame recebido\n";
-//
-//  } while (true);
-//
-//  unsigned long availSize = chk_available_size();
-//  if (availSize == -1) { return -1; }
-//
-//  cout << "Frame file size:" << f->get_dado() << "\n";
-//  int fileSize = stoi(f->get_dado());
-//
-//  if (fileSize > availSize * 0.9) {
-//    cout << "Tamanho do arquivo muito grande, abortado\n";
-//    // send_error();
-//    return 0;
-//  }
-//
-//  cout << "Espaco suficiente em disco\n";
-//  return 1;
-//}
-//
-//bool server::create_received_dir() {
-//
-//  // check if the directory exists
-//  struct stat info;
-//  if (stat(FILE_DESTINATION, &info) == 0 && (info.st_mode & S_IFDIR)) {
-//    cout << "Diretorio ja existe\n";
-//    return true;
-//  }
-//
-//  // create the directory
-//  if (mkdir(FILE_DESTINATION, 0700) == -1) {
-//    cout << "Erro ao criar o diretorio\n";
-//    return false;
-//  }
-//
-//  cout << "Diretorio criado com sucesso\n";
-//  return true;
-//}
-//
-//string server::receive_file_name() {
-//  frame *fReceive;
-//
-//  // Aguarda receber um frame do tipo midia com o nome do arquivo
-//  // E com a sequencia de numero 2
-//  /*
-//    > recebe o frame e verifica se o tipo e a sequencia estao corretos
-//    > se estiverem, verifica o crc8
-//    > se estiver correto, envia um ack e continua
-//    > se estiver errado, envia um nack e espera receber o proximo frame
-//  */
-//  cout << "Recebendo nome do arquivo\n";
-//
-//  do {
-//    cout << "Aguardando frame\n";
-//    fReceive = receive_frame_socket();
-//    if (!fReceive) { return string{}; }
-//
-//    cout << "Frame recebido\n";
-//
-//    if (fReceive->get_tipo() != MIDIA) { continue; }
-//    if ( fReceive->get_seq() != 1 )    
-//    { 
-//      cout << "Sequencia errada\n";
-//      fReceive->set_seq(0);
-//      send_ack(fReceive);
-//      continue;
-//    }
-//
-//    if (verify_crc8(fReceive)) { break; }
-//
-//    cout << "Crc invalido, aguardando retransmissao\n";
-//
-//  } while (true);
-//
-//  cout << "Nome do arquivo recebido com sucesso\n";
-//  cout << "Nome do arquivo: " << fReceive->get_dado() << "\n";
-//
-//  return string(fReceive->get_dado());
-//}
+int server::receive_file_size(frame *f) {
 
+ cout << "Recebendo tamanho do frame\n";
+ unsigned long availSize = chk_available_size();
+ if (availSize == -1) { return -1; }
 
-//
+ cout << "Frame file size:" << f->get_dado() << "\n";
+ int fileSize = stoi(f->get_dado());
+
+ if (fileSize > availSize * 0.9) {
+   cout << "Tamanho do arquivo muito grande, abortado\n";
+   // send_error();
+   return 0;
+ }
+
+  cout << "Espaco suficiente em disco\n";
+  return 1;
+}
+
+bool server::create_received_dir() {
+
+  cout << "Criando diretorio";
+  // Check if the directory exists
+  struct stat info;
+  if (stat(FILE_DESTINATION, &info) == 0 && (info.st_mode & S_IFDIR)) {
+    cout << "Diretorio ja existe\n";
+    return true;
+  }
+
+  // create the directory
+  if (mkdir(FILE_DESTINATION, 0700) == -1) {
+    cout << "Erro ao criar o diretorio\n";
+    return false;
+  }
+
+  cout << "Diretorio criado com sucesso\n";
+  return true;
+}
+
 //int server::receive_file_data(string fileName) {
-//  string fileDestination;
-//  fileDestination.append(FILE_DESTINATION);
-//  fileDestination.push_back('/');
-//  fileDestination.append(fileName);
-//
-//  // Abre o arquivo para escrita
-//  ofstream file;
-//  file.open(fileDestination, ios::binary);
-//  if (!file.is_open()) {
-//    cout << "Falha ao criar o arquivo. Abortado\n";
-//    return 0;
-//  }
-//
-//  cout << "Arquivo criado com sucesso\n";
 //
 //  int lastSeq = 1;
 //  frame *f;
@@ -348,23 +279,53 @@ bool server::verify_seq(int seq, int lastSeq) {
 //  return 1;
 //}
 //
-//void server::receive_midia(frame *f) {
-//  cout << "Recebendo frame midia\n";
-//  if (!create_received_dir()) { return; }
-//  if (!receive_file_size(f)) { return; }
-//
-//  string fileName = receive_file_name();
-//
-//  if (fileName.size() == 0) { return; }
-//
-//  if ( !receive_file_data(fileName) ) {
-//    cout << "Falha ao receber o arquivo\n";
-//    return;
-//  }
-//
-//  cout << "Arquivo recebido com sucesso\n";
-//}
-//
+
+ofstream server::create_file(string fileName) {
+  string fileDestination;
+  fileDestination.append(FILE_DESTINATION);
+  fileDestination.push_back('/');
+  fileDestination.append(fileName);
+
+  // Abre o arquivo para escrita
+  ofstream file;
+  file.open(fileDestination, ios::binary);
+  return file;
+}
+
+int server::receive_midia(frame *f) {
+  
+  ofstream file;
+
+  // Escreve o dado no arquivo
+  if ( f->get_tipo() == DADOS )
+  {
+    file.write(f->get_dado(), f->get_tam());
+    return 1;
+  }
+
+  // Primeiro frame de midia
+  if ( f->get_seq() == 0 )
+  {
+    cout << "Recebendo tamanho do arquivo\n";
+    if (!create_received_dir()) { return 0; }
+    if (!receive_file_size(f))  { return 0; }
+  }
+
+  // Segundo frame de midia
+  string fileName = string(f->get_dado());
+  file = create_file(fileName);
+
+  if (!file.is_open())
+  {
+   cout << "Falha ao criar o arquivo. Abortado\n";
+   return 0;
+  }
+
+  cout << "Arquivo criado com sucesso\n";
+  if ( !file.is_open() )     { return 0; }
+  return 1;
+}
+
 //// Recebe um frame do cliente
 frame *server::receive_frame_socket() {
   frame *fReceive;
@@ -517,6 +478,7 @@ void server::start_receveing_message() {
       int tipo = f->get_tipo();
       int tam = f->get_tam();
       char *data_f = f->get_dado();
+
       switch (tipo)
       {
         case FIMT:
@@ -531,9 +493,15 @@ void server::start_receveing_message() {
           break;
 
         case MIDIA:
+          if ( !receive_midia(f) ) { return; }
+          lastSeq = f->get_seq();
+          tipo_data = next_tipo_midia(f);
           break;
 
         case DADOS:
+          if ( !receive_midia(f)) { return; }
+          lastSeq = f->get_seq();
+          tipo_data = DADOS;
           break;
 
         default:
@@ -569,6 +537,9 @@ void server::start_receveing_message() {
 
   if ( tipo_data == TEXTO ) 
     cout << ">>>>>>>>>>>>>> Mensagem recebida: " << string(data.begin(), data.end()) << "\n";
+
+  if ( tipo_data == DADOS )
+    cout << ">>>>>>>>>>>>>> Arquivo recebido\n";
 }
 
 // ------------------------------- PUBLIC --------------------------------- //
