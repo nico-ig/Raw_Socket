@@ -101,11 +101,11 @@ int server::send_error(frame *fReceive, string msg) {
 
   int errorSent = socket->send_frame(error);
   if (errorSent == -1) {
-    // cout << "Falha ao enviar o erro\n"; -> log
+     cout << "Falha ao enviar o erro\n"; //-> log
     return -1;
   }
 
-  // cout << "Erro enviado\n"; -> log
+   cout << "Erro enviado\n"; //-> log
 
   return errorSent;
 }
@@ -203,8 +203,8 @@ int server::next_tipo_midia(frame *f) {
 UL server::chk_available_size() {
   struct statvfs st;
   if (statvfs(FILE_DESTINATION, &st) == -1) {
-    // cout << "Erro no statvfs, abortado\n";->log
-    // send_error();
+     cout << "Erro no statvfs, abortado\n";//->log
+     //send_error();
     return -1;
   }
 
@@ -224,11 +224,11 @@ int server::receive_file_size(frame *f) {
   if (fileSize > availSize * 0.9) {
     cout << BOLDMAGENTA << "\t--Tamanho do arquivo muito grande, abortado--\n"
          << RESET;
-    // send_error();
+     //send_error();
     return 0;
   }
 
-  // cout << "Espaco suficiente em disco\n"; ->log
+   cout << "Espaco suficiente em disco\n"; //->log
   return 1;
 }
 
@@ -238,7 +238,7 @@ bool server::create_received_dir() {
   // Check if the directory exists
   struct stat info;
   if (stat(FILE_DESTINATION, &info) == 0 && (info.st_mode & S_IFDIR)) {
-    // cout << "Diretorio ja existe\n"; ->log
+     cout << "Diretorio ja existe\n"; //->log
     return true;
   }
 
@@ -248,7 +248,7 @@ bool server::create_received_dir() {
     return false;
   }
 
-  // cout << "Diretorio criado com sucesso\n"; ->log
+   cout << "Diretorio criado com sucesso\n"; //->log
   return true;
 }
 
@@ -340,7 +340,7 @@ frame *server::receive_frame_socket() {
   } while (fReceive == NULL && retries < NUM_RETRIES);
 
   if (fReceive == NULL && retries == NUM_RETRIES) {
-    // cout << "Desisti de receber o frame\n"; //->log
+     cout << "Desisti de receber o frame\n"; //->log
     return NULL;
   }
 
@@ -352,16 +352,16 @@ queue<frame *> server::receive_frames_window(int lastSeq) {
   frame *f;
 
   do {
-    // cout << "Recebendo frame\n";
+     cout << "Recebendo frame\n";
     if (!(f = receive_frame_socket())) { break; }
-    // cout << "Frame recebido:\n";
+     cout << "Frame recebido:\n";
 
     int tipo = f->get_tipo();
-    // f->imprime(DEC);
+     f->imprime(DEC);
 
     // Adiciona o frame de fim de transmissao
     if (tipo == FIMT) {
-      // cout << "Frame FIMT recebido\n";
+      cout << "Frame FIMT recebido\n";
       frames_queue.push(f);
       break;
     }
@@ -420,11 +420,11 @@ void server::start_receveing_message() {
 
   // Fica ouvindo o cliente ate receber um FIMT
   do {
-    // cout << "Recebendo frames\n";
+     cout << "Recebendo frames\n";
     queue<frame *> frames = receive_frames_window(lastSeq);
-    if (frames.empty()) { break; }
+    if (frames.empty()) { cout << "Timeout"; break; }
 
-    // cout << "Quantidade de frames na janela: " << frames.size() << "\n";
+     cout << "Quantidade de frames na janela: " << frames.size() << "\n";
 
     // Ve o que faz com cada frame de acordo com o tipo
     while (!frames.empty()) {
@@ -441,9 +441,9 @@ void server::start_receveing_message() {
         client_answer.push(create_ack_nack(ACK, f->get_seq()));
       }
 
-      // cout << "Frame recebido: \n"; ->log
-      // f->imprime(DEC);
-      // cout << "\n";
+       cout << "Frame recebido: \n"; //->log
+       f->imprime(DEC);
+       cout << "\n";
 
       int tipo = f->get_tipo();
       int tam = f->get_tam();
@@ -451,7 +451,8 @@ void server::start_receveing_message() {
 
       switch (tipo) {
       case FIMT:
-        // cout << "Encerrou a transmissao\n";
+         cout << "Encerrou a transmissao\n";
+         file.close();
         continueTransmission = 0;
         break;
 
@@ -477,29 +478,31 @@ void server::start_receveing_message() {
       lastSeq = f->get_seq();
     }
 
-    // cout << "Recebeu todos os frames de uma janela\n";
+     cout << "Recebeu todos os frames de uma janela\n";
 
     // Envia a reposta ao cliente
-    // cout << "Enviando acks e nacks para o cliente\n";
+     cout << "Enviando acks e nacks para o cliente\n";
     while (!client_answer.empty()) {
       frame *f_answer = client_answer.front();
       client_answer.pop();
 
       if (socket->send_frame(f_answer) == -1) {
-        // cout << "Falha ao enviar a resposta\n"; ->log
+         cout << "Falha ao enviar a resposta\n"; //->log
         return;
       }
 
-      // if (f_answer->get_tipo() == NACK)
-      //   cout << "NACK " << (int)f_answer->get_dado()[0] << " enviado\n";
+       if (f_answer->get_tipo() == NACK)
+         cout << "NACK " << (int)f_answer->get_dado()[0] << " enviado\n";
 
-      // else
-      //   cout << "ACK " << (int)f_answer->get_dado()[0] << " enviado\n"; ->log
+       else
+         cout << "ACK " << (int)f_answer->get_dado()[0] << " enviado\n"; //->log
     }
 
-    // cout << "Todos os ACKs e NACKs foram enviados\n";
+     cout << "Todos os ACKs e NACKs foram enviados\n";
 
   } while (continueTransmission);
+
+  if ( continueTransmission ) { cout << "Falha\n"; return; }
 
   if (tipo_data == TEXTO)
     cout << BOLDYELLOW << "\t--Mensagem recebida--\n " << BOLDWHITE
@@ -520,17 +523,17 @@ void server::run() {
     frame *fReceive;
     if (!(fReceive = socket->receive_frame())) { continue; }
 
-    // cout << "Frame recebido:" << endl; ->log
-    // fReceive->imprime(HEX);
+     cout << "Frame recebido:" << endl; //->log
+     fReceive->imprime(HEX);
 
     // Verifica se o frame eh de inicio de transmissao e se nao veio com erro
     int frameType = fReceive->get_tipo();
     if (frameType != INIT) {
-      // cout << "Frame ignorado, n eh INIT\n"; ->log
+       cout << "Frame ignorado, n eh INIT\n"; //->log
       continue;
     }
 
-    // cout << "Frame de INIT\n"; ->log
+     cout << "Frame de INIT\n"; //->log
     if (!fReceive->chk_crc8()) {
       send_nack(fReceive);
       continue;
