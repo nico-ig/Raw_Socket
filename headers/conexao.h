@@ -23,8 +23,9 @@
 
 using namespace std;
 
-#define BYTE "%02x"
-#define NUM_RETRIES 100
+#define NUM_RETRIES 10
+#define TAM_JANELA 2
+
 
 class conexao {
 private:
@@ -89,10 +90,6 @@ frame *conexao::receive_frame() {
 
   do {
     byteRecv = recv(device, bufferReceived, sizeof(frame) * 2, 0);
-    //    for (int i = 0; i < byteRecv; i++) {
-    //      cout << hex << (int(bufferReceived[i])&0xff) << " ";
-    //    }
-    cout << "\n";
     if ((byteRecv > 0) && (bufferReceived[0] == INI)) {
       frame *f = new frame;
       remove_escapes(bufferReceived, (char *)f);
@@ -122,7 +119,10 @@ int conexao::send_frame(frame *f) {
     cout << hex << (int(bufferSend[i]) & 0xff) << " ";
   }
   cout << "\n";
-  if (byteSend < 0) { cout << "Erro no sendto" << byteSend << "\n"; }
+  if (byteSend < 0) { 
+    cout << "Erro no sendto" << byteSend << "\n"; 
+    return -1;
+  }
 
   return byteSend;
 }

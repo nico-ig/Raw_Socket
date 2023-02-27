@@ -1,15 +1,8 @@
 -> Ver se os frames que estao vindo sao arquivos e juntar eles no arquivo
 
--> Arrumar receive valid frame, retries
-
--> Arrumar nome arquivo > 63
-
 -> Arrumar a interface
 
--> Merge correcao de erro
-  -> Enviar arquivo correcao de erros
-  -> Readme
-  -> Demonstracao
+-> Demonstracao correcao de erros
 
 -> Janela deslizante
   -> Demonstracao

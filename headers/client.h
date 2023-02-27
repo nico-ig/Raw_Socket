@@ -96,7 +96,9 @@ frame* client::send_frame_socket(frame *f) {
   int retries = 0;
   do {
     // envia um frame da fila
-    socket->send_frame(f);
+    int bytesSent = socket->send_frame(f);
+    if ( bytesSent == -1 ) { return NULL; }
+    
     response = receive_ack_nack();
     if(!response)
       return NULL;
@@ -155,50 +157,62 @@ int client::send_frames(vector<frame *> frames) {
   cout << "\tstart transmission\n";
   if (!start_transmission()) { return 0; }
   cout << "\t ->>> started transmission <<< -\n";
+
   // Cria a fila de frames
   queue<int> janela;
   int frameCounter;
   int iniJanela = 0;
   while (iniJanela < frames.size()) {
+
     //manda todos os frames de uma vez só
     for(frameCounter = 0; frameCounter < TAM_JANELA; frameCounter++){
-      if(iniJanela+frameCounter == frames.size())
-        break;
+      if(iniJanela+frameCounter == frames.size()) { break; }
       janela.push(frameCounter);
       
       cout << "\tEnviando frame\n";
       frames[iniJanela]->imprime(HEX);
       
-      if(socket->send_frame(frames[iniJanela+frameCounter]) >= 0)
-        cout << "\tFrame enviado com sucesso\n";
+      if (socket->send_frame(frames[iniJanela+frameCounter]) == -1)
+      {
+        cout << "Falha ao enviar o frame\n";
+        return 0;
+      }
+
+      cout << "\tFrame enviado com sucesso\n";
     }
 
+    // Recebe a resposta do servidor
     for (int i = 0; i < min((int)TAM_JANELA, (int)frames.size()); i++) {
       frame* res = NULL;
       int retries = 0;
+
       do {
         res = receive_ack_nack();
         retries++;
       } while (res == NULL && retries < NUM_RETRIES);
 
       if(res == NULL && retries == NUM_RETRIES){
-        break;
+        return 0;
       }
       
       if(res->get_tipo() == NACK && res->get_dado()[0] == janela.front()){
+        cout << "NACK " << (int)res->get_dado()[0] << " recebido\n" ;
         iniJanela += res->get_dado()[0];
         janela.pop();
         break;
       }
 
       if(res->get_tipo() == ACK && res->get_dado()[0] == janela.front()){
+        cout << "ACK " << (int)res->get_dado()[0] << " recebido\n" ;
         iniJanela++;
         janela.pop();
       }
+
       else{
         i--;
       }
     }
+
     //apaga a janela
     while(! janela.empty()) janela.pop();
   }
