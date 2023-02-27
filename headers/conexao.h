@@ -23,8 +23,8 @@
 #include "frame.h"
 using namespace std;
 
-#define NUM_RETRIES 50
-#define TAM_JANELA 2
+#define NUM_RETRIES 10
+#define TAM_JANELA 16
 
 class conexao {
 private:
@@ -50,7 +50,7 @@ private:
   void close_connection(); // fecha a conexao
 
 public:
-  int timeoutMillis = 500; // Tempo que fica tentando ler
+  int timeoutMillis = 200; // Tempo que fica tentando ler
 
   // ------ Construtor ------ //
   conexao(char *deviceIP);

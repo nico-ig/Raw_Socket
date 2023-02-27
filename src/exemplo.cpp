@@ -48,18 +48,5 @@ int main(int argc, char *argv[]) {
     break;
   }
 
-  //  thread clientSend(&client::run, &cliente);
-
-  //  server servidor(&local, &target);
-  //  thread serverReceive(&server::run, &servidor);
-
-  //  int receive = 0;
-  //  while (true) {
-  //    receive++;
-  //  }
-
-  // serverReceive.join();
-  //  clientSend.join();
-
   return 0;
 }
