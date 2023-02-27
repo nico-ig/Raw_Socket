@@ -24,7 +24,7 @@
 using namespace std;
 
 #define NUM_RETRIES 10
-#define TAM_JANELA 16
+#define TAM_JANELA 2
 
 class conexao {
 private:

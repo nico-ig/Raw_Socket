@@ -332,6 +332,7 @@ queue<frame *> server::receive_frames_window(int lastSeq) {
     if (tipo == FIMT) {
       cout << "Frame FIMT recebido\n";
       frames_queue.push(f);
+      socket->send_frame(create_ack_nack(ACK, f->get_seq()));
       break;
     }
 
@@ -342,6 +343,7 @@ queue<frame *> server::receive_frames_window(int lastSeq) {
       tipoReceivingFrames = f->get_tipo();
       frames_queue.push(f);
       lastSeq = 0;
+      socket->send_frame(create_ack_nack(ACK, f->get_seq()));
       continue;
     }
 
@@ -354,6 +356,7 @@ queue<frame *> server::receive_frames_window(int lastSeq) {
       tipoReceivingFrames = DADOS;
       frames_queue.push(f);
       lastSeq = f->get_seq();
+      socket->send_frame(create_ack_nack(ACK, f->get_seq()));
       continue;
     }
 
@@ -362,6 +365,7 @@ queue<frame *> server::receive_frames_window(int lastSeq) {
       if (!verify_seq(f->get_seq(), lastSeq)) { continue; }
       frames_queue.push(f);
       lastSeq = f->get_seq();
+      socket->send_frame(create_ack_nack(ACK, f->get_seq()));
       continue;
     }
 
@@ -370,6 +374,7 @@ queue<frame *> server::receive_frames_window(int lastSeq) {
       if (!verify_seq(f->get_seq(), lastSeq)) { continue; }
       frames_queue.push(f);
       lastSeq = f->get_seq();
+      socket->send_frame(create_ack_nack(ACK, f->get_seq()));
       continue;
     }
 
@@ -399,16 +404,16 @@ void server::start_receveing_message() {
     while (!frames.empty()) {
       frame *f = frames.front();
       frames.pop();
-
-      // Recebeu um frame com erro, retorna um nack e sai da funcao
-      if (!f->chk_crc8()) {
-        client_answer.push(create_ack_nack(NACK, f->get_seq()));
-        continue;
-      }
-
-      else {
-        client_answer.push(create_ack_nack(ACK, f->get_seq()));
-      }
+//
+//      // Recebeu um frame com erro, retorna um nack e sai da funcao
+//      if (!f->chk_crc8()) {
+//        client_answer.push(create_ack_nack(NACK, f->get_seq()));
+//        continue;
+//      }
+//
+//      else {
+//        client_answer.push(create_ack_nack(ACK, f->get_seq()));
+//      }
 
       cout << "Frame recebido: \n";
       f->imprime(DEC);
@@ -423,6 +428,9 @@ void server::start_receveing_message() {
         cout << "Encerrou a transmissao\n";
         continueTransmission = 0;
         break;
+
+      case INIT:
+        return;
 
       case TEXTO:
         data.insert(data.end(), data_f, data_f + tam);
@@ -449,24 +457,24 @@ void server::start_receveing_message() {
     cout << "Recebeu todos os frames de uma janela\n";
 
     // Envia a reposta ao cliente
-    cout << "Enviando acks e nacks para o cliente\n";
-    while (!client_answer.empty()) {
-      frame *f_answer = client_answer.front();
-      client_answer.pop();
-
-      if (socket->send_frame(f_answer) == -1) {
-        cout << "Falha ao enviar a resposta\n";
-        return;
-      }
-
-      if (f_answer->get_tipo() == NACK)
-        cout << "NACK " << (int)f_answer->get_dado()[0] << " enviado\n";
-
-      else
-        cout << "ACK " << (int)f_answer->get_dado()[0] << " enviado\n";
-    }
-
-    cout << "Todos os ACKs e NACKs foram enviados\n";
+//    cout << "Enviando acks e nacks para o cliente\n";
+//    while (!client_answer.empty()) {
+//      frame *f_answer = client_answer.front();
+//      client_answer.pop();
+//
+//      if (socket->send_frame(f_answer) == -1) {
+//        cout << "Falha ao enviar a resposta\n";
+//        return;
+//      }
+//
+//      if (f_answer->get_tipo() == NACK)
+//        cout << "NACK " << (int)f_answer->get_dado()[0] << " enviado\n";
+//
+//      else
+//        cout << "ACK " << (int)f_answer->get_dado()[0] << " enviado\n";
+//    }
+//
+//    cout << "Todos os ACKs e NACKs foram enviados\n";
 
   } while (continueTransmission);
 

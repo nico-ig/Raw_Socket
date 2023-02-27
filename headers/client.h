@@ -177,12 +177,10 @@ int client::send_frames(vector<frame *> frames) {
       frame *res = NULL;
       int retries = 0;
 
-      do {
-        retries++;
-        res = receive_ack_nack();
-      } while (res == NULL && retries < NUM_RETRIES);
+      cout << "Aguardando resposta\n";
+      res = receive_ack_nack();
       
-      if (res == NULL && retries == NUM_RETRIES) { break; }
+      if (res == NULL ) { cout << "Nao houve resposta\n"; continue; }
 
       cout << "Resposta recebida\n";
       cout << "Numero ack/nack: " << (int)res->get_dado()[0] << " ---- "
