@@ -106,17 +106,18 @@ frame *conexao::receive_frame() {
  */
 int conexao::send_frame(frame *f) {
 
-  add_escapes((char *)f, bufferSend);
+  int escapes = add_escapes((char *)f, bufferSend);
 
   bool ack = false;
   int timeout = 0;
 
-  int byteSend = send(device, bufferSend, sizeof(frame) * 2, 0);
-  printf("send %d: ", byteSend);
-  for (int i = 0; i < byteSend; i++) {
+  cout << "send: ";
+  for ( int i = 0; i < escapes; i++ )
     cout << hex << (int(bufferSend[i]) & 0xff) << " ";
-  }
   cout << "\n";
+
+  int byteSend = send(device, bufferSend, sizeof(frame) * 2, 0);
+
   if (byteSend < 0) {
     cout << "Erro no sendto" << byteSend << "\n";
     return -1;
@@ -140,18 +141,23 @@ int conexao::add_escapes(char *f, char *out) {
   for (size_t i = 0; i < sizeof(frame); i++) {
     out[j++] = f[i];
 
-    if (f[i] == 0x88 || f[i] == 0x81) out[j++] = 0xFF;
+    if (f[i] == (char)0x88 || f[i] == (char)0x81) { out[j++] = 0xFF; }
   }
+
+  cout << "\nescapes: ";
+  for ( int i = 0; i < j; i++ )
+    cout << hex << (int(out[i]) & 0xff) << " ";
+  cout << "\n";
 
   return j;
 }
 
 int conexao::remove_escapes(char *f, char *out) {
   int j = 0;
-  for (size_t i = 0; j < sizeof(frame); i++) {
+  for (size_t i = 0; i < sizeof(frame); i++) {
     out[j++] = f[i];
 
-    if (f[i] == 0x88 || f[i] == 0x81) i++;
+    if (f[i] == (char)0x88 || f[i] == (char)0x81) i++;
   }
 
   return j;
