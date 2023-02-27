@@ -21,10 +21,10 @@
 #include <sys/types.h>
 
 // include local
+#include "conexao.h"
 #include "cores.h"
 #include "frame.h"
 #include "macros.h"
-#include "conexao.h"
 
 #define FILE_DESTINATION "./received"
 
@@ -34,34 +34,29 @@ class server {
 
 private:
   // --------- Dados ---------- //
-  //int soquete;
+  // int soquete;
   int tipoReceivingFrames;
 
   conexao *socket;
 
-  //vector<frame *> framesMidia;
+  // vector<frame *> framesMidia;
 
   // ---------- Funcoes -------- //
 
-  frame*    create_ack_nack     (int tipo, int seq);
-  int       send_nack           (frame *fReceive);
-  int       send_ack            (frame *fReceive);
-  bool      verify_seq          (int seq, int lastSeq);
-  int       next_tipo_midia     (frame *f);
-  bool      create_received_dir ();
-  UL        chk_available_size  ();
-  int       receive_file_size   (frame *f);
-  string    create_file_destination(string fileName);
-  ofstream  create_file         (string fileName);
-  int       receive_midia       (frame *f);
-  //void send_confirm(frame *fReceive);
-  //void receive_text(frame *f);
-  //int receive_valid_frame(frame **f);
-  //int receive_file_data(string fileName);
-  //bool verify_crc8(frame *f);
+  frame *create_ack_nack(int tipo, int seq);
+  int send_nack(frame *fReceive);
+  int send_ack(frame *fReceive);
+  bool verify_seq(int seq, int lastSeq);
+  int next_tipo_midia(frame *f);
+  bool create_received_dir();
+  UL chk_available_size();
+  int receive_file_size(frame *f);
+  string create_file_destination(string fileName);
+  ofstream create_file(string fileName);
+  int receive_midia(frame *f, ofstream *file);
   frame *receive_frame_socket();
-  queue<frame *> receive_frames_window(int lastSeq);
   void start_receveing_message();
+  queue<frame *> receive_frames_window(int lastSeq);
 
 public:
   // ------- Construtores ------ //
@@ -73,15 +68,14 @@ public:
 
 // ------------------------------ PRIVATE --------------------------------- //
 /**
- * @brief function that creates a nack or a nack 
+ * @brief function that creates a nack or a nack
  *
  * @param tipo ack or nack
  * @param seq  ack or nack sequence number
  * @return int
  */
 
-frame *server::create_ack_nack(int tipo, int seq)
-{
+frame *server::create_ack_nack(int tipo, int seq) {
   vector<char> seq_char;
   frame *f = new frame();
 
@@ -104,13 +98,12 @@ int server::send_ack(frame *fReceive) {
   frame *ack = create_ack_nack(ACK, fReceive->get_seq());
 
   int ackSent = socket->send_frame(ack);
-  if ( ackSent == -1 ) 
-  { 
+  if (ackSent == -1) {
     cout << "Falha ao enviar o ack\n";
-    return -1; 
+    return -1;
   }
 
-  cout << "ACK " << (int) fReceive->get_seq() << " enviado\n";
+  cout << "ACK " << (int)fReceive->get_seq() << " enviado\n";
 
   return ackSent;
 }
@@ -126,12 +119,12 @@ int server::send_nack(frame *fReceive) {
   frame *nack = create_ack_nack(NACK, fReceive->get_seq());
 
   int nackSent = socket->send_frame(nack);
-  if ( nackSent == -1 ) { 
+  if (nackSent == -1) {
     cout << "Falha ao enviar o nack";
-    return -1; 
+    return -1;
   }
 
-  cout << "NACK " << (int) fReceive->get_seq() << " enviado\n";
+  cout << "NACK " << (int)fReceive->get_seq() << " enviado\n";
 
   return nackSent;
 }
@@ -141,12 +134,11 @@ int server::send_nack(frame *fReceive) {
  *
  * @param seq
  * @param lastSeq
- * @return bool 
+ * @return bool
  */
 bool server::verify_seq(int seq, int lastSeq) {
-  if ( seq == 0 )
-  {
-    if ( lastSeq != TAM_JANELA - 1 ) { return false; }
+  if (seq == 0) {
+    if (lastSeq != TAM_JANELA - 1) { return false; }
     return true;
   }
 
@@ -155,32 +147,33 @@ bool server::verify_seq(int seq, int lastSeq) {
 }
 
 int server::next_tipo_midia(frame *f) {
-  if ( f->get_tipo() != MIDIA ) { return -1; }
-  if ( f->get_seq() == 0 )      { return MIDIA; }
-  if ( f->get_seq() == 1 )      {
+  if (f->get_tipo() != MIDIA) { return -1; }
+  if (f->get_seq() == 0) { return MIDIA; }
+  if (f->get_seq() == 1) {
     cout << YELLOW << "\t--Recebendo dados arquivo--\n" << RESET;
-    return DADOS; }
+    return DADOS;
+  }
 
   return -1;
 }
 
 //// Recebe uma mensagem em forma de texto
-//void server::receive_text(frame *f) {
-//  string textoReceive;
-//  textoReceive.append(f->get_dado());
-//  int lastSeq = f->get_seq();
+// void server::receive_text(frame *f) {
+//   string textoReceive;
+//   textoReceive.append(f->get_dado());
+//   int lastSeq = f->get_seq();
 //
-//  do {
-//    if (!receive_valid_frame(&f)) { return; }
-//    if (f->get_tipo() != TEXTO) { continue; }
-//    if (f->get_seq() == lastSeq) { continue; }
+//   do {
+//     if (!receive_valid_frame(&f)) { return; }
+//     if (f->get_tipo() != TEXTO) { continue; }
+//     if (f->get_seq() == lastSeq) { continue; }
 //
-//    lastSeq = f->get_seq();
-//    textoReceive.append(f->get_dado());
-//  } while (f->get_tipo() != FIMT);
+//     lastSeq = f->get_seq();
+//     textoReceive.append(f->get_dado());
+//   } while (f->get_tipo() != FIMT);
 //
-//  cout << "Mensagem recebida: " << textoReceive << "\n";
-//}
+//   cout << "Mensagem recebida: " << textoReceive << "\n";
+// }
 //
 //// Verifica o espaco disponivel em disco
 
@@ -198,19 +191,19 @@ UL server::chk_available_size() {
 //// Recebe o frame com o tamanho do arquivo
 int server::receive_file_size(frame *f) {
 
- cout << "Recebendo tamanho do frame\n";
- unsigned long availSize = chk_available_size();
- if (availSize == -1) { return -1; }
+  cout << "Recebendo tamanho do frame\n";
+  unsigned long availSize = chk_available_size();
+  if (availSize == -1) { return -1; }
 
- cout << "Frame file size:" << f->get_dado() << "\n";
- int fileSize = stoi(f->get_dado());
+  cout << "Frame file size:" << f->get_dado() << "\n";
+  int fileSize = stoi(f->get_dado());
 
- if (fileSize > availSize * 0.9) {
+  if (fileSize > availSize * 0.9) {
     cout << BOLDMAGENTA << "\t--Tamanho do arquivo muito grande, abortado--\n"
          << RESET;
     // send_error();
     return 0;
- }
+  }
 
   // cout << "Espaco suficiente em disco\n"; ->log
   return 1;
@@ -236,57 +229,56 @@ bool server::create_received_dir() {
   return true;
 }
 
-//int server::receive_file_data(string fileName) {
+// int server::receive_file_data(string fileName) {
 //
-//  int lastSeq = 1;
-//  frame *f;
+//   int lastSeq = 1;
+//   frame *f;
 //
-//  cout << "\tRecebendo dados arquivo\n";
-//  do {
-//    cout << "Aguardando frame\n";
+//   cout << "\tRecebendo dados arquivo\n";
+//   do {
+//     cout << "Aguardando frame\n";
 //
-//    // Fica tentando receber um frame
-//    f = receive_frame_socket();
-//    if (f == NULL) { return 0; }
+//     // Fica tentando receber um frame
+//     f = receive_frame_socket();
+//     if (f == NULL) { return 0; }
 //
-//    cout << "Frame recebido\n";
-//    f->imprime(HEX);
+//     cout << "Frame recebido\n";
+//     f->imprime(HEX);
 //
-//    if (f->get_tipo() == FIMT) { break; }
+//     if (f->get_tipo() == FIMT) { break; }
 //
-//    if (f->get_tipo() != DADOS) { continue; }
+//     if (f->get_tipo() != DADOS) { continue; }
 //
-//    if (f->get_seq() == lastSeq) { continue; }
+//     if (f->get_seq() == lastSeq) { continue; }
 //
-//    // Recebeu um frame com uma sequencia errada
-//    if (!verify_seq(f->get_seq(), lastSeq)) {
-//      cout << "Frame com a sequencia errada; Pedindo a certa\n";
-//      f->set_seq(lastSeq);
-//      send_ack(f);
-//      continue;
-//    }
+//     // Recebeu um frame com uma sequencia errada
+//     if (!verify_seq(f->get_seq(), lastSeq)) {
+//       cout << "Frame com a sequencia errada; Pedindo a certa\n";
+//       f->set_seq(lastSeq);
+//       send_ack(f);
+//       continue;
+//     }
 //
-//    if (!verify_crc8(f)) { 
-//      cout << "Crc invalido\n";
-//      continue; 
-//    }
+//     if (!verify_crc8(f)) {
+//       cout << "Crc invalido\n";
+//       continue;
+//     }
 //
-//    cout << "Seq " << int(f->get_seq()) << "recebida com sucesso\n";
-//    lastSeq = f->get_seq();
-//    file.write(f->get_dado(), f->get_tam());
+//     cout << "Seq " << int(f->get_seq()) << "recebida com sucesso\n";
+//     lastSeq = f->get_seq();
+//     file.write(f->get_dado(), f->get_tam());
 //
-//  } while (true);
+//   } while (true);
 //
-//  cout << "Dados do arquivo recebido com sucesso\n";
-//  send_ack(f);
+//   cout << "Dados do arquivo recebido com sucesso\n";
+//   send_ack(f);
 //
-//  file.close();
-//  return 1;
-//}
+//   file.close();
+//   return 1;
+// }
 //
 
-string server::create_file_destination(string fileName)
-{
+string server::create_file_destination(string fileName) {
   string fileDestination;
   fileDestination.append(FILE_DESTINATION);
   fileDestination.push_back('/');
@@ -296,23 +288,25 @@ string server::create_file_destination(string fileName)
 }
 
 ofstream server::create_file(string fileName) {
- cout << "Criando arquivo\n";
- cout << "Nome do arquivo: " << fileName << "\n";
-//  long long start = socket->timestamp();
-//  struct timeval timeout = {.tv_sec = 0, .tv_usec = socket->timeoutMillis * 1000};
+  cout << "Criando arquivo\n";
+  cout << "Nome do arquivo: " << fileName << "\n";
+  //  long long start = socket->timestamp();
+  //  struct timeval timeout = {.tv_sec = 0, .tv_usec = socket->timeoutMillis *
+  //  1000};
   string fileDestination = create_file_destination(fileName);
 
-//  cout << BOLDWHITE << "Criando arquivo " << BOLDYELLOW << fileDestination
-//       << BOLDWHITE << ". Digite novo nome ou enter para continuar: " << RESET;
+  //  cout << BOLDWHITE << "Criando arquivo " << BOLDYELLOW << fileDestination
+  //       << BOLDWHITE << ". Digite novo nome ou enter para continuar: " <<
+  //       RESET;
 
-//  string newDestination = "";
-//  do {
-//    getline(cin, newDestination);
-//  } while (socket->timestamp() - start <= socket->timeoutMillis);
+  //  string newDestination = "";
+  //  do {
+  //    getline(cin, newDestination);
+  //  } while (socket->timestamp() - start <= socket->timeoutMillis);
 
-//  if (!newDestination.empty() && newDestination != "\n") {
-//    fileDestination = newDestination;
-//  }
+  //  if (!newDestination.empty() && newDestination != "\n") {
+  //    fileDestination = newDestination;
+  //  }
   cout << YELLOW << "\t--Criando arquivo: " << fileDestination << "--\n"
        << RESET;
 
@@ -322,42 +316,34 @@ ofstream server::create_file(string fileName) {
   return file;
 }
 
-int server::receive_midia(frame *f) {
-  cout << "Recebendo midia:\n"
-        << "Seq: " << int(f->get_seq()) << "\n"
-        << "Dado: " << f->get_dado() << "\n";
-  ofstream file;
-
+int server::receive_midia(frame *f, ofstream *file) {
   // Escreve o dado no arquivo
-  if ( f->get_tipo() == DADOS )
-  {
-    file.write(f->get_dado(), f->get_tam());
+  if (f->get_tipo() == DADOS) {
+    (*file).write(f->get_dado(), f->get_tam());
     return 1;
   }
 
   // Primeiro frame de midia
-  if ( f->get_seq() == 0 )
-  {
+  if (f->get_seq() == 0) {
     cout << "Recebendo tamanho do arquivo\n";
     if (!create_received_dir()) { return 0; }
-    if (!receive_file_size(f))  { return 0; }
+    if (!receive_file_size(f)) { return 0; }
     return 1;
   }
 
   // Segundo frame de midia
   string fileName = string(f->get_dado());
-  file = create_file(fileName);
+  (*file) = create_file(fileName);
 
-  if (!file.is_open())
-  {
+  if (!(*file).is_open()) {
     cout << RED << "\tFalha ao criar o arquivo. Abortado\n" << RESET;
-    file.close();
+    (*file).close();
     remove(create_file_destination(fileName).c_str());
     return 0;
   }
 
   // cout << BOLDGREEN << "\t--Arquivo recebido com sucesso--\n" << RESET;
-  if ( !file.is_open() )     { return 0; }
+  if (!(*file).is_open()) { return 0; }
   return 1;
 }
 
@@ -378,83 +364,52 @@ frame *server::receive_frame_socket() {
 
   return fReceive;
 }
-//
-//bool server::verify_crc8(frame *f) {
-//  int crc8 = f->chk_crc8();
-//  if (!crc8) {
-//    send_nack(f);
-//  }
-//  else
-//    send_ack(f);
-//  return crc8;
-//}
-//
-//int server::receive_valid_frame(frame **f) {
-//
-//  do {
-//    // Se nao conseguir receber o frame, mata a comunicacao
-//    *f = receive_frame_socket();
-//    if (*f == NULL) { return 0; }
-//
-//    // Avisa o cliente se nao conseguiu receber o frame
-//  } while (!verify_crc8(*f));
-//  return 1;
-//}
 
-queue<frame *> server::receive_frames_window(int lastSeq)
-{
+queue<frame *> server::receive_frames_window(int lastSeq) {
   queue<frame *> frames_queue;
   frame *f;
-  int midia_cnt = 0;
   int retries = 0;
 
   do {
-    if ( ! (f = receive_frame_socket()) ) { continue; }
-    
+    if (!(f = receive_frame_socket())) { continue; }
+
     retries++;
 
     int tipo = f->get_tipo();
 
     // Adiciona o frame de fim de transmissao
-    if ( tipo == FIMT ) 
-    {
+    if (tipo == FIMT) {
       frames_queue.push(f);
       return frames_queue;
     }
 
     // Primeiro frame a ser recebido, seta o tipo
-    if ( lastSeq == -1 ) 
-    {
+    if (lastSeq == -1) {
       // Ignora os frames perdidos na linha
-      if ( (tipo != MIDIA && tipo != TEXTO) || f->get_seq() != 0 ) {continue;}
+      if ((tipo != MIDIA && tipo != TEXTO) || f->get_seq() != 0) { continue; }
       tipoReceivingFrames = f->get_tipo();
       frames_queue.push(f);
       lastSeq = 0;
       retries = 0;
-      midia_cnt++;
-      continue; 
+      continue;
     }
 
-
     // Ignora se o frame nao for do tipo midia e esteja recebendo midia
-    if ( tipo == MIDIA && tipoReceivingFrames == MIDIA )
-    {
+    if (tipo == MIDIA && tipoReceivingFrames == MIDIA) {
       // Ignora se for um frame do tipo midia que nao e o segundo da sequencia
-      if ( !(midia_cnt != 1 && TAM_JANELA == 1) ) { continue; }
+      if (lastSeq != 0 || f->get_seq() != 1) { continue; }
 
       // Se for o segundo frame do tipo midia, muda o tipo esperado
       tipoReceivingFrames = DADOS;
       frames_queue.push(f);
-      midia_cnt++;
       lastSeq = f->get_seq();
       retries = 0;
       continue;
     }
 
     // Recebe os frames de dados de um arquivo
-    if ( tipoReceivingFrames == DADOS && tipo == DADOS )
-    {
-      if ( !verify_seq(f->get_seq(), lastSeq) ) { continue; }
+    if (tipoReceivingFrames == DADOS && tipo == DADOS) {
+      if (!verify_seq(f->get_seq(), lastSeq)) { continue; }
       frames_queue.push(f);
       retries = 0;
       lastSeq = f->get_seq();
@@ -462,18 +417,18 @@ queue<frame *> server::receive_frames_window(int lastSeq)
     }
 
     // Recebe os frames de uma mensagem
-    if ( tipoReceivingFrames == TEXTO && tipo == TEXTO )
-    {
-      if ( !verify_seq(f->get_seq(), lastSeq) ) { continue; }
+    if (tipoReceivingFrames == TEXTO && tipo == TEXTO) {
+      if (!verify_seq(f->get_seq(), lastSeq)) { continue; }
       frames_queue.push(f);
       retries = 0;
       lastSeq = f->get_seq();
       continue;
     }
 
-  } while ( (f == NULL && retries < NUM_RETRIES) || frames_queue.size() < TAM_JANELA );
+  } while ((f == NULL && retries < NUM_RETRIES) ||
+           frames_queue.size() < TAM_JANELA);
 
-  if ( f == NULL && retries == NUM_RETRIES ) { return queue<frame *>(); }
+  if (f == NULL && retries == NUM_RETRIES) { return queue<frame *>(); }
 
   return frames_queue;
 }
@@ -482,34 +437,33 @@ void server::start_receveing_message() {
   int continueTransmission = 1;
   int lastSeq = -1;
   int tipo_data = -1;
-  int midia_cnt = 0;
   vector<char> data;
+  ofstream file;
   queue<frame *> client_answer;
 
   cout << "Recebendo frames\n";
   // Fic aouvindo o cliente ate receber um FIMT
   do {
     queue<frame *> frames = receive_frames_window(lastSeq);
-    if ( frames.empty() ) { return; }
+    if (frames.empty()) { return; }
 
     cout << "Quantidade de frames na janela: " << frames.size() << "\n";
 
     // Ve o que faz com cada frame de acordo com o tipo
-    while ( !frames.empty() )
-    {
+    while (!frames.empty()) {
       frame *f = frames.front();
       frames.pop();
 
       // Recebeu um frame com erro, retorna um nack e sai da funcao
-      if ( !f->chk_crc8() ) {
+      if (!f->chk_crc8()) {
         client_answer.push(create_ack_nack(NACK, f->get_seq()));
         continue;
       }
 
-      else { 
+      else {
         client_answer.push(create_ack_nack(ACK, f->get_seq()));
       }
-      
+
       cout << "Frame recebido: \n";
       f->imprime(DEC);
       cout << "\n";
@@ -518,48 +472,43 @@ void server::start_receveing_message() {
       int tam = f->get_tam();
       char *data_f = f->get_dado();
 
-      switch (tipo)
-      {
-        case FIMT:
-          cout << "Encerrou a transmissao\n";
-          continueTransmission = 0;
-          break;
+      switch (tipo) {
+      case FIMT:
+        cout << "Encerrou a transmissao\n";
+        continueTransmission = 0;
+        break;
 
-        case TEXTO:
-          data.insert(data.end(), data_f, data_f + tam);
-          lastSeq = f->get_seq();
-          tipo_data = TEXTO;
-          break;
+      case TEXTO:
+        data.insert(data.end(), data_f, data_f + tam);
+        tipo_data = TEXTO;
+        break;
 
-        case MIDIA:
-          if ( TAM_JANELA == 1 && midia_cnt == 1) { f->set_seq(1); } 
-          if ( !receive_midia(f) ) { return; }
-          tipo_data = next_tipo_midia(f);
-          midia_cnt++;
-          break;
+      case MIDIA:
+        if (!receive_midia(f, &file)) { return; }
+        tipo_data = next_tipo_midia(f);
+        break;
 
-        case DADOS:
-          if ( !receive_midia(f)) { return; }
-          lastSeq = f->get_seq();
-          tipo_data = DADOS;
-          break;
+      case DADOS:
+        if (!receive_midia(f, &file)) { return; }
+        tipo_data = DADOS;
+        break;
 
-        default:
-          break;
+      default:
+        break;
       }
+
+      lastSeq = f->get_seq();
     }
 
     cout << "Recebeu todos os frames de uma janela\n";
 
     // Envia a reposta ao cliente
     cout << "Enviando acks e nacks para o cliente\n";
-    while ( !client_answer.empty() )
-    {
+    while (!client_answer.empty()) {
       frame *f_answer = client_answer.front();
       client_answer.pop();
 
-      if (socket->send_frame(f_answer) == -1 )
-      {
+      if (socket->send_frame(f_answer) == -1) {
         cout << "Falha ao enviar a resposta\n";
         return;
       }
@@ -575,12 +524,12 @@ void server::start_receveing_message() {
 
   } while (continueTransmission);
 
-  if ( tipo_data == TEXTO )
+  if (tipo_data == TEXTO)
     cout << BOLDYELLOW << "\t--Mensagem recebida--\n " << BOLDWHITE
          << string(data.begin(), data.end()) << "\n"
          << RESET;
 
-  if ( tipo_data == DADOS )
+  if (tipo_data == DADOS)
     cout << BOLDGREEN << "\t--Arquivo recebido com sucesso--\n" << RESET;
 }
 
@@ -610,7 +559,7 @@ void server::run() {
       continue;
     }
 
-    if ( send_ack(fReceive) == -1 ) { continue; }
+    if (send_ack(fReceive) == -1) { continue; }
     start_receveing_message();
   }
 }
