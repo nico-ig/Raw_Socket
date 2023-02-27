@@ -522,11 +522,22 @@ void server::start_receveing_message() {
         case FIMT:
           cout << "Encerrou a transmissao\n";
           continueTransmission = 0;
+          break;
 
         case TEXTO:
           data.insert(data.end(), data_f, data_f + tam);
           lastSeq = f->get_seq();
           tipo_data = TEXTO;
+          break;
+
+        case MIDIA:
+          break;
+
+        case DADOS:
+          break;
+
+        default:
+          break;
       }
     }
 
