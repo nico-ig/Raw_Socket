@@ -117,6 +117,20 @@ int client::start_transmission() {
   return 1;
 }
 
+// Encerra a transmissao com o servidor
+int client::end_transmission() {
+   cout << "\tEncerrando a transmissao\n";// ->log
+  frame *end = new frame(FIMT, 0, vector<char>(1, 0));
+  frame *enviado = send_frame_socket(end);
+  if (!enviado) {
+     cout << "\tFalha ao encerrar a transmissao\n";// ->log
+    return 0;
+  }
+
+   cout << "\tTransmissao encerrada com sucesso\n";// ->log
+  return 1;
+}
+
 /**
  * @brief Send a list of frames through the socket
  *
@@ -148,7 +162,7 @@ int client::send_frames(vector<frame *> frames) {
       janela.push((iniJanela + frameCounter) % 16);
 
       cout << "\tEnviando frame\n";
-      frames[iniJanela + frameCounter]->imprime(HEX);
+      frames[iniJanela + frameCounter]->imprime(DEC);
 
       if (socket->send_frame(frames[iniJanela + frameCounter]) == -1) {
         cout << "Falha ao enviar o frame\n";
