@@ -19,12 +19,13 @@
 #include <arpa/inet.h>
 
 // include local
-#include "cores.h"
 #include "frame.h"
+
 using namespace std;
 
 #define NUM_RETRIES 10
 #define TAM_JANELA 2
+
 
 class conexao {
 private:
@@ -95,6 +96,7 @@ frame *conexao::receive_frame() {
       return f;
     }
   } while (timestamp() - start <= timeoutMillis);
+
   return NULL;
 }
 
@@ -117,8 +119,8 @@ int conexao::send_frame(frame *f) {
     cout << hex << (int(bufferSend[i]) & 0xff) << " ";
   }
   cout << "\n";
-  if (byteSend < 0) {
-    cout << "Erro no sendto" << byteSend << "\n";
+  if (byteSend < 0) { 
+    cout << "Erro no sendto" << byteSend << "\n"; 
     return -1;
   }
 
@@ -165,7 +167,7 @@ int conexao::ConexaoRawSocket(char *device) {
 
   soquete = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL)); /*cria socket*/
   if (soquete == -1) {
-    cout << BOLDRED << "\tErro no Socket, verifique se voce eh root\n" << RESET;
+    printf("Erro no Socket, verifique se voce eh root\n");
     exit(-1);
   }
 
