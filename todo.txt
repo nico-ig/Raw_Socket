@@ -1,8 +1,8 @@
 -> Ver se os frames que estao vindo sao arquivos e juntar eles no arquivo
 
--> Arrumar receive valid frame, retries
+-> Fazer send_error
 
--> Arrumar nome arquivo > 63
+-> Arrumar o receive text
 
 -> Arrumar a interface
 

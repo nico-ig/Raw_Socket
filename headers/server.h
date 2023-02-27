@@ -22,8 +22,8 @@
 
 // include local
 #include "conexao.h"
-#include "frame.h"
 #include "cores.h"
+#include "frame.h"
 
 #define FILE_DESTINATION "./received"
 
@@ -83,7 +83,7 @@ int server::send_ack(frame *fReceive) {
   int ackSent = 0;
   ackSent = socket->send_frame(ack);
 
-  cout << "ACK enviado\n";
+  // cout << "ACK enviado\n"; ->log
 
   return ackSent;
 }
@@ -106,7 +106,7 @@ int server::send_nack(frame *fReceive) {
   int nackSent = 0;
   nackSent = socket->send_frame(nack);
 
-  cout << "NACK enviado\n";
+  // cout << "NACK enviado\n"; ->log
 
   return nackSent;
 }
@@ -126,14 +126,16 @@ void server::receive_text(frame *f) {
     textoReceive.append(f->get_dado());
   } while (f->get_tipo() != FIMT);
 
-  cout << "Mensagem recebida: " << textoReceive << "\n";
+  cout << BOLDYELLOW << "\t--Mensagem recebida--\n " << BOLDWHITE
+       << textoReceive << "\n"
+       << RESET;
 }
 
 // Verifica o espaco disponivel em disco
 unsigned long server::chk_available_size() {
   struct statvfs st;
   if (statvfs(FILE_DESTINATION, &st) == -1) {
-    cout << "Erro no statvfs, abortado\n";
+    // cout << "Erro no statvfs, abortado\n";->log
     // send_error();
     return -1;
   }
@@ -151,12 +153,12 @@ int server::receive_file_size(frame *f) {
      crc estiver certo, envia um ack e continua > se estiver errado, envia um
      nack e espera receber o proximo frame
   */
-  cout << "Recebendo tamanho do frame\n";
+  // cout << "Recebendo tamanho do frame\n";->log
   do {
-    if ( f->get_tipo() != MIDIA ) { continue; }
-    if ( f->get_seq() == 0 && verify_crc8(f) ) { break; }
-    
-    if ( f->get_seq() != 0 )
+    if (f->get_tipo() != MIDIA) { continue; }
+    if (f->get_seq() == 0 && verify_crc8(f)) { break; }
+
+    if (f->get_seq() != 0)
       cout << "Sequencia errada\n";
     else
       cout << "Crc errado\n";
@@ -173,16 +175,17 @@ int server::receive_file_size(frame *f) {
   unsigned long availSize = chk_available_size();
   if (availSize == -1) { return -1; }
 
-  cout << "Frame file size:" << f->get_dado() << "\n";
+  // cout << "Frame file size:" << f->get_dado() << "\n"; ->log
   int fileSize = stoi(f->get_dado());
 
   if (fileSize > availSize * 0.9) {
-    cout << "Tamanho do arquivo muito grande, abortado\n";
+    cout << BOLDMAGENTA << "\t--Tamanho do arquivo muito grande, abortado--\n"
+         << RESET;
     // send_error();
     return 0;
   }
 
-  cout << "Espaco suficiente em disco\n";
+  // cout << "Espaco suficiente em disco\n"; ->log
   return 1;
 }
 
@@ -191,17 +194,17 @@ bool server::create_received_dir() {
   // check if the directory exists
   struct stat info;
   if (stat(FILE_DESTINATION, &info) == 0 && (info.st_mode & S_IFDIR)) {
-    cout << "Diretorio ja existe\n";
+    // cout << "Diretorio ja existe\n"; ->log
     return true;
   }
 
   // create the directory
   if (mkdir(FILE_DESTINATION, 0777) == -1) {
-    cout << "Erro ao criar o diretorio\n";
+    cout << RED << "Erro ao criar o diretorio\n" << RESET;
     return false;
   }
 
-  cout << "Diretorio criado com sucesso\n";
+  // cout << "Diretorio criado com sucesso\n"; ->log
   return true;
 }
 
@@ -216,19 +219,18 @@ string server::receive_file_name() {
     > se estiver correto, envia um ack e continua
     > se estiver errado, envia um nack e espera receber o proximo frame
   */
-  cout << "Recebendo nome do arquivo\n";
+  // cout << "Recebendo nome do arquivo\n";->log
 
   do {
-    cout << "Aguardando frame\n";
+    // cout << "Aguardando frame\n";->log
     fReceive = receive_frame_socket();
     if (!fReceive) { return string{}; }
 
-    cout << "Frame recebido\n";
+    // cout << "Frame recebido\n";->log
 
     if (fReceive->get_tipo() != MIDIA) { continue; }
-    if ( fReceive->get_seq() != 1 )    
-    { 
-      cout << "Sequencia errada\n";
+    if (fReceive->get_seq() != 1) {
+      // cout << "Sequencia errada\n";->log
       fReceive->set_seq(0);
       send_ack(fReceive);
       continue;
@@ -236,21 +238,20 @@ string server::receive_file_name() {
 
     if (verify_crc8(fReceive)) { break; }
 
-    cout << "Crc invalido, aguardando retransmissao\n";
+    // cout << "Crc invalido, aguardando retransmissao\n"; ->log
 
   } while (true);
 
-  cout << "Nome do arquivo recebido com sucesso\n";
-  cout << "Nome do arquivo: " << fReceive->get_dado() << "\n";
+  // cout << "Nome do arquivo recebido com sucesso\n"; ->log
+  // cout << "Nome do arquivo: " << fReceive->get_dado() << "\n"; ->log
 
   return string(fReceive->get_dado());
 }
 
 bool server::verify_seq(int seq, int lastSeq) {
-  cout << "seq: " << seq << " lastSeq: " << dec << lastSeq << "\n";
-  if ( seq == 0 )
-  {
-    if ( lastSeq != 15 ) { return false; }
+  // cout << "seq: " << seq << " lastSeq: " << dec << lastSeq << "\n"; ->log
+  if (seq == 0) {
+    if (lastSeq != 15) { return false; }
     return true;
   }
 
@@ -264,14 +265,18 @@ int server::receive_file_data(string fileName) {
   fileDestination.push_back('/');
   fileDestination.append(fileName);
 
-  cout << BOLDGREEN << "Criando arquivo " << BOLDYELLOW << fileDestination
-       << BOLDGREEN << ". Digite novo nome ou enter para continuar: " << RESET;
+
+  cout << BOLDWHITE << "Criando arquivo " << BOLDYELLOW << fileDestination
+       << BOLDWHITE << ". Digite novo nome ou enter para continuar: " << RESET;
 
   string newDestination = "";
   getline(cin, newDestination);
-  if(!newDestination.empty() && newDestination != "\n" ) { fileDestination = newDestination; }
-  cout << YELLOW << "Criando arquivo: " << fileDestination << "\n" << RESET;
-            
+  if (!newDestination.empty() && newDestination != "\n") {
+    fileDestination = newDestination;
+  }
+  cout << YELLOW << "\t--Criando arquivo: " << fileDestination << "--\n"
+       << RESET;
+
   // Abre o arquivo para escrita
   ofstream file;
   file.open(fileDestination, ios::binary);
@@ -283,21 +288,19 @@ int server::receive_file_data(string fileName) {
   int lastSeq = 1;
   frame *f;
 
-  cout << "\tRecebendo dados arquivo\n";
+  cout << YELLOW << "\t--Recebendo dados arquivo--\n" << RESET;
   do {
-    cout << "Aguardando frame\n";
-
     // Fica tentando receber um frame
     f = receive_frame_socket();
     if (f == NULL) {
-      cout << "Erro ao receber dados do arquivo";
+      // cout << BOLDRED << "\tErro ao receber dados do arquivo\n" << RESET;
+      // ->log
       file.close();
       remove(fileDestination.c_str());
       return 0;
     }
 
-    cout << "Frame recebido\n";
-    f->imprime(HEX);
+    // f->imprime(HEX); ->log
 
     if (f->get_tipo() == FIMT) { break; }
 
@@ -307,24 +310,24 @@ int server::receive_file_data(string fileName) {
 
     // Recebeu um frame com uma sequencia errada
     if (!verify_seq(f->get_seq(), lastSeq)) {
-      cout << "Frame com a sequencia errada; Pedindo a certa\n";
+      // cout << "Frame com a sequencia errada; Pedindo a certa\n"; ->log
       f->set_seq(lastSeq);
       send_ack(f);
       continue;
     }
 
-    if (!verify_crc8(f)) { 
-      cout << "Crc invalido\n";
-      continue; 
+    if (!verify_crc8(f)) {
+      // cout << "Crc invalido\n"; ->log
+      continue;
     }
 
-    cout << "Seq " << int(f->get_seq()) << "recebida com sucesso\n";
+    // cout << "Seq " << int(f->get_seq()) << "recebida com sucesso\n"; ->log
     lastSeq = f->get_seq();
     file.write(f->get_dado(), f->get_tam());
 
   } while (true);
 
-  cout << "Dados do arquivo recebido com sucesso\n";
+  // cout << "\tDados do arquivo recebido com sucesso\n"; ->log
   send_ack(f);
 
   file.close();
@@ -332,7 +335,8 @@ int server::receive_file_data(string fileName) {
 }
 
 void server::receive_midia(frame *f) {
-  cout << "Recebendo frame midia\n";
+  cout << BOLDYELLOW << "\t--Recebendo arquivo--\n" << RESET;
+  // cout << "Recebendo frame midia\n"; ->log
   if (!create_received_dir()) { return; }
   if (!receive_file_size(f)) { return; }
 
@@ -340,12 +344,12 @@ void server::receive_midia(frame *f) {
 
   if (fileName.size() == 0) { return; }
 
-  if ( !receive_file_data(fileName) ) {
-    cout << RED << "\tFalha ao receber o arquivo\n" << RESET;
+  if (!receive_file_data(fileName)) {
+    cout << BOLDRED << "\t--Falha ao receber o arquivo\n--" << RESET;
     return;
   }
 
-  cout << GREEN << "\tArquivo recebido com sucesso\n" << RESET;
+  cout << BOLDGREEN << "\t--Arquivo recebido com sucesso--\n" << RESET;
 }
 
 // Recebe um frame do cliente
@@ -359,7 +363,7 @@ frame *server::receive_frame_socket() {
   } while (fReceive == NULL && retries < NUM_RETRIES);
 
   if (fReceive == NULL && retries == NUM_RETRIES) {
-    cout << "Desisti de receber o frame\n";
+    // cout << "Desisti de receber o frame\n"; ->log
     return NULL;
   }
 
@@ -370,8 +374,7 @@ bool server::verify_crc8(frame *f) {
   int crc8 = f->chk_crc8();
   if (!crc8) {
     send_nack(f);
-  }
-  else
+  } else
     send_ack(f);
   return crc8;
 }
@@ -391,7 +394,7 @@ int server::receive_valid_frame(frame **f) {
 void server::start_receveing_message() {
   int continueTransmission = 1;
 
-  cout << "Recebendo frames\n";
+  // cout << "Recebendo frames\n"; ->log
   frame *f;
   do {
     if (!receive_valid_frame(&f)) { return; }
@@ -426,14 +429,17 @@ void server::run() {
     frame *fReceive;
     if (!(fReceive = socket->receive_frame())) { continue; }
 
-    cout << "Frame recebido:" << endl;
-    fReceive->imprime(HEX);
+    // cout << "Frame recebido:" << endl; ->log
+    // fReceive->imprime(HEX);
 
     // Verifica se o frame eh de inicio de transmissao e se nao veio com erro
     int frameType = fReceive->get_tipo();
-    if (frameType != INIT) { cout << "Frame ignorado, n eh INIT\n"; continue; }
+    if (frameType != INIT) {
+      // cout << "Frame ignorado, n eh INIT\n"; ->log
+      continue;
+    }
 
-    cout << "Frame de INIT\n";
+    // cout << "Frame de INIT\n"; ->log
     if (!fReceive->chk_crc8()) {
       send_nack(fReceive);
       continue;

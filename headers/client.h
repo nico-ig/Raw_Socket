@@ -21,15 +21,8 @@
 
 // include local
 #include "conexao.h"
+#include "cores.h"
 #include "frame.h"
-
-vector<string> CMD_HELP = {"H",  "help",  "-h",    "HELP", "Help",
-                           "-H", "ajuda", "Ajuda", "AJUDA"};
-vector<string> CMD_EXIT = {"exit", "-e",   "EXIT", "Exit",
-                           "-E",   "sair", "Sair", "SAIR"};
-vector<string> CMD_SEND = {"send", "-s",     "SEND",   "Send",
-                           "-S",   "enviar", "Enviar", "ENVIAR"};
-
 using namespace std;
 
 class client {
@@ -80,7 +73,7 @@ frame *client::receive_ack(frame *f) {
   do {
     ack_res = socket->receive_frame();
     if (ack_res && ack_res->get_tipo() == ERRO) {
-      cout << "Espaco insulficiente no destino\n";
+      cout << BOLDYELLOW << "Espaco insulficiente no destino\n" << RESET;
       return NULL;
     }
   } while (ack_res &&
@@ -102,41 +95,40 @@ int client::send_frame_socket(frame *f) {
   } while (ack_res == NULL && retries < NUM_RETRIES);
 
   if (ack_res == NULL && retries == NUM_RETRIES) {
-    cout << "Desisti de enviar\n";
+    // cout << "Desisti de enviar\n"; ->log
     return 0;
   }
 
-  cout << "\tACK recebido:\n";
-  ack_res->imprime(HEX);
+  // cout << "\tACK recebido:\n"; ->log
+  // ack_res->imprime(HEX);
   return 1;
 }
 
-
 // Inicia a transmissao com o servidor
 int client::start_transmission() {
-  cout << "\tIniciando transmissao\n";
+  // cout<< YELLOW << "\tIniciando transmissao\n" << RESET; ->log
   frame *ini = new frame(INIT, 0, vector<char>(1, 0));
   int enviado = send_frame_socket(ini);
   if (!enviado) {
-    cout << "\tFalha ao iniciar a transmissao\n";
+    // cout<< BOLDRED << "\tFalha ao iniciar a transmissao\n" << RESET; ->log
     return 0;
   }
 
-  cout << "\tTransmissao iniciada com sucesso\n";
+  // cout<< GREEN << "\tTransmissao iniciada com sucesso\n" << RESET; ->log
   return 1;
 }
 
 // Encerra a transmissao com o servidor
 int client::end_transmission() {
-  cout << "\tEncerrando a transmissao\n";
+  // cout << "\tEncerrando a transmissao\n"; ->log
   frame *end = new frame(FIMT, 0, vector<char>(1, 0));
   int enviado = send_frame_socket(end);
   if (!enviado) {
-    cout << "\tFalha ao encerrar a transmissao\n";
+    // cout << "\tFalha ao encerrar a transmissao\n"; ->log
     return 0;
   }
 
-  cout << "\tTransmissao encerrada com sucesso\n";
+  // cout << "\tTransmissao encerrada com sucesso\n"; ->log
   return 1;
 }
 
@@ -154,20 +146,20 @@ int client::send_frames(vector<frame *> frames) {
   // Envia um frame por vez
   for (size_t i = 0; i < frames.size(); i++) {
 
-    cout << "\tEnviando frame\n";
-    frames[i]->imprime(DEC);
+    // cout << "\tEnviando frame\n"; ->log
+    // frames[i]->imprime(DEC);
 
     int enviado = send_frame_socket(frames[i]);
     if (!enviado) {
-      cout << "\tFalha ao enviar o frame\n";
+      // cout << "\tFalha ao enviar o frame\n"; ->log
       return 0;
     }
 
-    cout << "\tFrame enviado com sucesso\n";
+    // cout << "\tFrame enviado com sucesso\n"; ->log
   }
 
   if (!end_transmission()) { return 0; }
-  cout << "\tTerminou de enviar todos os frames\n";
+  // cout << "\tTerminou de enviar todos os frames\n"; ->log
   return 1;
 }
 
@@ -211,7 +203,7 @@ int client::send_message(vector<char> data, int type) {
 string client::calc_file_size(string fileName) {
   struct stat buffer;
   if (stat(fileName.c_str(), &buffer) == -1) {
-    cout << "Arquivo inexistente. Operacao abortada\n";
+    cout << YELLOW << "\t--Arquivo inexistente. Operacao abortada--\n" << RESET;
     return {};
   }
 
@@ -231,7 +223,6 @@ vector<char> client::read_file(string fileName) {
   return fileData;
 }
 
-
 /**
  * @brief Send a file through the socket
  *
@@ -241,20 +232,22 @@ void client::send_file() {
   string fileName;
 
   do {
-    cout << "Digite o nome do arquivo(maximo de " << TAM_DADOS
-         << " char):\n";
+    cout << BOLDWHITE << "Digite o nome do arquivo(maximo de " << TAM_DADOS
+         << " char):\n"
+         << RESET;
     getline(cin, fileName);
   } while (fileName.size() > TAM_DADOS);
 
   fileNameVector.insert(fileNameVector.begin(), fileName.begin(),
                         fileName.end());
 
+  cout << BOLDYELLOW << "\t--Enviando arquivo--\n" << RESET;
   if (!send_message(fileNameVector, MIDIA)) {
-    cout << "Falha ao enviar o arquivo\n";
+    cout << BOLDRED << "\t--Falha ao enviar o arquivo--\n" << RESET;
     return;
   }
 
-  cout << "Arquivo enviado com sucesso\n";
+  cout << BOLDGREEN << "\t--Arquivo enviado com sucesso--\n" << RESET;
 }
 
 /**
@@ -264,14 +257,14 @@ void client::send_file() {
  */
 void client::send_text(string message) {
 
-  cout << "Enviando mensagem\n";
+  cout << BOLDYELLOW << "\t--Enviando mensagem--\n" << RESET;
 
   vector<char> data(message.begin(), message.end());
   if (!send_message(data, TEXTO))
-    cout << "Limite de timout, mensagem nao foi enviada\n";
-
+    cout << BOLDRED << "\t--Limite de timout, mensagem nao foi enviada--\n"
+         << RESET;
   else
-    cout << "Mensagem enviada com sucesso\n";
+    cout << GREEN << "\t--Mensagem enviada com sucesso--\n" << RESET;
 }
 
 vector<frame *> client::create_frames_midia(vector<char> vectorName) {
@@ -296,7 +289,8 @@ vector<frame *> client::create_frames_midia(vector<char> vectorName) {
   // Cria um vetor com os dados do arquivo
   vector<char> vectorData = read_file(fileName);
   if (vectorData.empty()) {
-    cout << "Falha ao abrir o arquivo para leitura\n";
+    cout << BOLDRED << "\t--Falha ao abrir o arquivo para leitura--\n"
+         << RESET; //->log
     return vector<frame *>();
   }
 
@@ -306,7 +300,7 @@ vector<frame *> client::create_frames_midia(vector<char> vectorName) {
 
   // Arruma a sequencia dos frames
   for (int i = 0; i < framesToSend.size(); i++)
-    framesToSend[i]->set_seq(i%16);
+    framesToSend[i]->set_seq(i % 16);
 
   return framesToSend;
 }
@@ -346,30 +340,29 @@ bool client::string_has(string str, vector<string> strList) {
 }
 
 char client::string_cmd(string str) {
-  if (string_has(str, CMD_HELP)) return 'h';
-
-  if (string_has(str, CMD_EXIT)) return 'e';
-
-  if (string_has(str, CMD_SEND)) return 's';
-
+  if (strcmp(str.c_str(), "-h") == 0) return 'h';
+  if (strcmp(str.c_str(), "-e") == 0) return 'e';
+  if (strcmp(str.c_str(), "-s") == 0) return 's';
   return 'm';
 }
 
 void client::print_help() {
-  cout << "Comandos disponiveis:\n";
-  cout << "help ou -h ou h ou HELP ou Help ou H ou ajuda ou Ajuda ou AJUDA\n";
-  cout << "exit ou -e ou e ou EXIT ou Exit ou E ou sair ou Sair ou SAIR\n";
-  cout << "send ou -s ou s ou SEND ou Send ou S ou enviar ou Enviar ou "
-          "ENVIAR\n";
-  cout << "para enviar uma mensagem, digite a mensagem e pressione enter\n";
+  cout << BOLDBLUE << "\t---Comandos disponiveis---\n" << RESET;
+  cout << YELLOW
+       << "para enviar uma mensagem, digite a mensagem e pressione enter\n"
+       << RESET;
+  cout << GREEN << "-s: " << WHITE << "envia um arquivo\n" << RESET;
+  cout << RED << "-e: " << WHITE << "sai do programa\n" << RESET;
+  cout << BLUE << "-h: " << WHITE << "exibe os comandos disponíveis\n" << RESET;
 }
 
 // ------------------------------- PUBLIC --------------------------------- //
 
 void client::run() {
   int i;
+  print_help();
   while (true) {
-    cout << " Digite um comando ou mensagem:\n";
+    cout << BOLDWHITE << "\nDigite um comando ou mensagem:\n" << RESET;
 
     getline(cin, userInput);
     char userInputCMD = string_cmd(userInput);
@@ -380,7 +373,7 @@ void client::run() {
       break;
 
     case 'e':
-      cout << "Saindo...\n";
+      cout << BOLDYELLOW << "\tSaindo...\n" << RESET;
       exit(0);
       break;
 
@@ -393,7 +386,7 @@ void client::run() {
       break;
 
     default:
-      cout << "Comando invalido\n";
+      cout << BOLDMAGENTA << "\tComando invalido\n" << RESET;
       break;
     }
   }

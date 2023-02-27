@@ -20,7 +20,7 @@
 
 // include local
 #include "frame.h"
-
+#include "cores.h"
 using namespace std;
 
 #define BYTE "%02x"
@@ -92,14 +92,13 @@ frame *conexao::receive_frame() {
     //    for (int i = 0; i < byteRecv; i++) {
     //      cout << hex << (int(bufferReceived[i])&0xff) << " ";
     //    }
-    cout << "\n";
+    // cout << "\n";
     if ((byteRecv > 0) && (bufferReceived[0] == INI)) {
       frame *f = new frame;
       remove_escapes(bufferReceived, (char *)f);
       return f;
     }
   } while (timestamp() - start <= timeoutMillis);
-
   return NULL;
 }
 
@@ -117,12 +116,12 @@ int conexao::send_frame(frame *f) {
   int timeout = 0;
 
   int byteSend = send(device, bufferSend, sizeof(frame) * 2, 0);
-  printf("send %d: ", byteSend);
-  for (int i = 0; i < byteSend; i++) {
-    cout << hex << (int(bufferSend[i]) & 0xff) << " ";
-  }
-  cout << "\n";
-  if (byteSend < 0) { cout << "Erro no sendto" << byteSend << "\n"; }
+  // printf("send %d: ", byteSend);
+  // for (int i = 0; i < byteSend; i++) {
+  //   cout << hex << (int(bufferSend[i]) & 0xff) << " ";
+  // }
+  // cout << "\n";
+  // if (byteSend < 0) { cout << "Erro no sendto" << byteSend << "\n"; } ->log
 
   return byteSend;
 }
@@ -167,7 +166,7 @@ int conexao::ConexaoRawSocket(char *device) {
 
   soquete = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL)); /*cria socket*/
   if (soquete == -1) {
-    printf("Erro no Socket, verifique se voce eh root\n");
+    cout << BOLDRED <<"\tErro no Socket, verifique se voce eh root\n" << RESET;
     exit(-1);
   }
 
