@@ -80,10 +80,10 @@ frame *client::receive_ack_nack() {
       if (!(response = socket->receive_frame())) { continue; }
     } while (response == NULL && retries < NUM_RETRIES);
 
-    // if (response && response->get_tipo() == ERRO) {
-    //   cout << BOLDYELLOW << "Espaco insulficiente no destino\n" << RESET;
-    //   return NULL;
-    // }
+     if (response && response->get_tipo() == ERRO) {
+       cout << BOLDYELLOW << "Espaco insulficiente no destino\n" << RESET;
+       return NULL;
+     }
   } while (response && !(verify_ack_nack(response)));
 
   return response;
@@ -99,15 +99,15 @@ frame *client::send_frame_socket(frame *f) {
     if (!response) return NULL;
   } while (response->get_dado()[0] != f->get_seq());
 
-  // cout << "\tACK recebido:\n"; // ->log
-  // response->imprime(DEC); // ->log
+   cout << "\tACK recebido:\n"; // ->log
+   response->imprime(DEC); // ->log
 
   return response;
 }
 
 // Inicia a transmissao com o servidor
 int client::start_transmission() {
-  // cout<< YELLOW << "\tIniciando transmissao\n" << RESET; ->log
+   cout<< YELLOW << "\tIniciando transmissao\n" << RESET; ->log
   frame *ini = new frame(INIT, 0, vector<char>(1, 0));
   frame *enviado = new frame();
   enviado = send_frame_socket(ini);
@@ -117,21 +117,21 @@ int client::start_transmission() {
     enviado = send_frame_socket(ini);
   }
   if (!enviado) {
-    // cout<< BOLDRED << "\tFalha ao iniciar a transmissao\n" << RESET; ->log
+     cout<< BOLDRED << "\tFalha ao iniciar a transmissao\n" << RESET; ->log
     return 0;
   }
 
-  // cout<< GREEN << "\tTransmissao iniciada com sucesso\n" << RESET; ->log
+   cout<< GREEN << "\tTransmissao iniciada com sucesso\n" << RESET; ->log
   return 1;
 }
 
 // Encerra a transmissao com o servidor
 int client::end_transmission() {
-  // cout << "\tEncerrando a transmissao\n"; // ->log
+   cout << "\tEncerrando a transmissao\n"; // ->log
   frame *end = new frame(FIMT, 0, vector<char>(1, 0));
   frame *enviado = send_frame_socket(end);
   if (!enviado) {
-    // cout << "\tFalha ao encerrar a transmissao\n"; // ->log
+     cout << "\tFalha ao encerrar a transmissao\n"; // ->log
     return 0;
   }
 
@@ -149,9 +149,9 @@ int client::send_frames(vector<frame *> frames) {
 
   if (frames.empty()) { return 0; }
 
-  // cout << "\tstart transmission\n"; ->log
+   cout << "\tstart transmission\n"; ->log
   if (!start_transmission()) { return 0; }
-  // cout << "\t ->>> started transmission <<< -\n"; ->log
+   cout << "\t ->>> started transmission <<< -\n"; ->log
 
   // Adiciona o frame de fim de transmissao
   int next_seq = frames.back()->get_seq() + 1;
@@ -169,20 +169,20 @@ int client::send_frames(vector<frame *> frames) {
       if (iniJanela + frameCounter == frames.size()) { break; }
       janela.push((iniJanela + frameCounter) % 16);
 
-      // cout << "\tEnviando frame: " << iniJanela + frameCounter << "\n"; 
+      cout << "\tEnviando frame: " << iniJanela + frameCounter << "\n"; 
       // frames[iniJanela + frameCounter]->imprime(DEC);
     
       if (socket->send_frame(frames[iniJanela + frameCounter]) == -1) {
-        // cout << "Falha ao enviar o frame\n"; ->log
+         cout << "Falha ao enviar o frame\n"; ->log
         continue;
       }
 
-      // cout << "\tFrame enviado com sucesso\n"; ->log
+       cout << "\tFrame enviado com sucesso\n"; ->log
     }
 
     // Recebe a resposta do servidor
     while (!janela.empty()) {
-      // cout << "Janela size: " << janela.size() << "\n";
+       cout << "Janela size: " << janela.size() << "\n";
       frame *res = NULL;
       int retries = 0;
 
@@ -192,16 +192,16 @@ int client::send_frames(vector<frame *> frames) {
       } while (res == NULL && retries < NUM_RETRIES);
 
       if (res == NULL && retries == NUM_RETRIES) {
-        // cout << "Numero maximo de tentativas excedido\n"; ->log
+         cout << "Numero maximo de tentativas excedido\n"; ->log
          
          break; }
 
-      // cout << "Resposta recebida\n";
-      // cout << "Numero ack/nack: " << (int)res->get_dado()[0] << " ---- "
-      //      << "Janela front: " << janela.front() << "\n";
+       cout << "Resposta recebida\n";
+       cout << "Numero ack/nack: " << (int)res->get_dado()[0] << " ---- "
+            << "Janela front: " << janela.front() << "\n";
 
       if (res->get_tipo() == NACK && res->get_dado()[0] == janela.front()) {
-        // cout << "NACK " << (int)res->get_dado()[0] << " recebido\n"; ->log
+         cout << "NACK " << (int)res->get_dado()[0] << " recebido\n"; ->log
         iniJanela += res->get_dado()[0];
         janela.pop();
         break;
@@ -216,18 +216,18 @@ int client::send_frames(vector<frame *> frames) {
       }
 
       if (res->get_tipo() == ACK && res->get_dado()[0] == janela.front()) {
-        // cout << "ACK " << (int)res->get_dado()[0] << " recebido\n";
+         cout << "ACK " << (int)res->get_dado()[0] << " recebido\n";
         iniJanela++;
         janela.pop();
       }
     }
 
     // apaga a janela
-    // while (!janela.empty())
-    //   janela.pop();
+     while (!janela.empty())
+      janela.pop();
   }
 
-  // cout << "\tTerminou de enviar todos os frames\n"; //->log
+   cout << "\tTerminou de enviar todos os frames\n"; //->log
   return 1;
 }
 
@@ -242,7 +242,7 @@ int client::send_frames(vector<frame *> frames) {
  */
 bool client::verify_ack_nack(frame *received) {
   // received error frame
-  // cout << "Verificando ACK/NACK/Error\n"; ->log
+   cout << "Verificando ACK/NACK/Error\n"; ->log
 
   return ((received->get_tipo() == ACK || received->get_tipo() == NACK ||
            received->get_tipo() == ERRO) &&

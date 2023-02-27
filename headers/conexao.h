@@ -140,7 +140,7 @@ int conexao::add_escapes(char *f, char *out) {
   for (size_t i = 0; i < sizeof(frame); i++) {
     out[j++] = f[i];
     
-    if (f[i] == 0x88 || f[i] == 0x81) out[j++] = 0xFF;
+    if (f[i] == (char)0x88 || f[i] == (char)0x81) out[j++] = 0xFF;
 
   }
 
@@ -152,7 +152,7 @@ int conexao::remove_escapes(char *f, char *out) {
   for (size_t i = 0; j < sizeof(frame); i++) {
     out[j++] = f[i];
 
-    if (f[i] == 0x88 || f[i] == 0x81) i++;
+    if (f[i] == (char)0x88 || f[i] == (char)0x81) i++;
   }
 
   return j;
