@@ -139,8 +139,9 @@ int conexao::add_escapes(char *f, char *out) {
 
   for (size_t i = 0; i < sizeof(frame); i++) {
     out[j++] = f[i];
-
+    
     if (f[i] == 0x88 || f[i] == 0x81) out[j++] = 0xFF;
+
   }
 
   return j;

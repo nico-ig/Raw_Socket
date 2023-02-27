@@ -46,6 +46,7 @@ private:
   frame *create_ack_nack(int tipo, int seq);
   int send_nack(frame *fReceive);
   int send_ack(frame *fReceive);
+  int send_error(frame *fReceive, string msg);
   bool verify_seq(int seq, int lastSeq);
   int next_tipo_midia(frame *f);
   bool create_received_dir();
@@ -85,6 +86,28 @@ frame *server::create_ack_nack(int tipo, int seq) {
   f->set_dado(seq_v);
 
   return f;
+}
+
+
+/**
+ * @brief function that send an error frame to the target
+ * 
+ */
+int server::send_error(frame *fReceive, string msg) {
+  frame *error = new frame();
+  error->set_tipo(ERRO);
+  vector<char> msg_error = vector<char>(msg.begin(), msg.end());
+  error->set_dado(msg_error);
+
+  int errorSent = socket->send_frame(error);
+  if (errorSent == -1) {
+    // cout << "Falha ao enviar o erro\n"; -> log
+    return -1;
+  }
+
+  // cout << "Erro enviado\n"; -> log
+
+  return errorSent;
 }
 
 /**
@@ -150,7 +173,7 @@ int server::next_tipo_midia(frame *f) {
   if (f->get_tipo() != MIDIA) { return -1; }
   if (f->get_seq() == 0) { return MIDIA; }
   if (f->get_seq() == 1) {
-    cout << YELLOW << "\t--Recebendo dados arquivo--\n" << RESET;
+    cout << BOLDBLUE << "\t--Recebendo dados arquivo--\n" << RESET;
     return DADOS;
   }
 
@@ -235,35 +258,28 @@ string server::create_file_destination(string fileName) {
   fileDestination.push_back('/');
   fileDestination.append(fileName);
 
+  cout << BOLDYELLOW << "Arquivo será salvo em: " << BOLDWHITE
+       << fileDestination << BOLDYELLOW
+       << ". Digite novo nome ou enter para continuar: " << RESET;
+  string newDestination = "";
+  getline(cin, newDestination);
+  if (!newDestination.empty() && newDestination != "\n") {
+    fileDestination = newDestination;
+  }
+
   return fileDestination;
 }
 
 ofstream server::create_file(string fileName) {
-  cout << "Criando arquivo\n";
-  cout << "Nome do arquivo: " << fileName << "\n";
   //  long long start = socket->timestamp();
   //  struct timeval timeout = {.tv_sec = 0, .tv_usec = socket->timeoutMillis *
   //  1000};
-  string fileDestination = create_file_destination(fileName);
-
-  //  cout << BOLDWHITE << "Criando arquivo " << BOLDYELLOW << fileDestination
-  //       << BOLDWHITE << ". Digite novo nome ou enter para continuar: " <<
-  //       RESET;
-
-  //  string newDestination = "";
-  //  do {
-  //    getline(cin, newDestination);
-  //  } while (socket->timestamp() - start <= socket->timeoutMillis);
-
-  //  if (!newDestination.empty() && newDestination != "\n") {
-  //    fileDestination = newDestination;
-  //  }
-  cout << YELLOW << "\t--Criando arquivo: " << fileDestination << "--\n"
-       << RESET;
+  string fileDestination = fileName.c_str();
 
   // Abre o arquivo para escrita
   ofstream file;
   file.open(fileDestination, ios::binary);
+
   return file;
 }
 
@@ -284,12 +300,24 @@ int server::receive_midia(frame *f, ofstream *file) {
 
   // Segundo frame de midia
   string fileName = string(f->get_dado());
-  (*file) = create_file(fileName);
+  //-- Aceita ou não o arquivo --//
+  cout << BOLDBLUE << "\t--Recebendo arquivo: " << fileName << "--\n" << RESET;
+  cout << BOLDYELLOW << "Aceitar arquivo? (s/n): " << RESET;
+  string accept;
+  cin >> accept;
+  if (accept != "s") {
+    cout << BOLDRED << "\t--Arquivo rejeitado--\n" << RESET;
+    send_error(f, "Arquivo rejeitado");
+    return 0;
+  }
+
+  string fileCurrentDir = create_file_destination(fileName);
+  (*file) = create_file(fileCurrentDir);
 
   if (!(*file).is_open()) {
     cout << RED << "\tFalha ao criar o arquivo. Abortado\n" << RESET;
     (*file).close();
-    remove(create_file_destination(fileName).c_str());
+    remove(fileCurrentDir.c_str());
     return 0;
   }
 
@@ -309,7 +337,7 @@ frame *server::receive_frame_socket() {
   } while (fReceive == NULL && retries < NUM_RETRIES);
 
   if (fReceive == NULL && retries == NUM_RETRIES) {
-     cout << "Desisti de receber o frame\n"; //->log
+    cout << "Desisti de receber o frame\n"; //->log
     return NULL;
   }
 
@@ -375,7 +403,6 @@ queue<frame *> server::receive_frames_window(int lastSeq) {
 
   } while (frames_queue.size() < TAM_JANELA);
 
-
   return frames_queue;
 }
 
@@ -383,17 +410,18 @@ void server::start_receveing_message() {
   int continueTransmission = 1;
   int lastSeq = -1;
   int tipo_data = -1;
+  int qtdeMidia = 0;
   vector<char> data;
   ofstream file;
   queue<frame *> client_answer;
 
   // Fica ouvindo o cliente ate receber um FIMT
   do {
-    cout << "Recebendo frames\n";
+    // cout << "Recebendo frames\n";
     queue<frame *> frames = receive_frames_window(lastSeq);
-    if ( frames.empty() ) { break; }
+    if (frames.empty()) { break; }
 
-    cout << "Quantidade de frames na janela: " << frames.size() << "\n";
+    // cout << "Quantidade de frames na janela: " << frames.size() << "\n";
 
     // Ve o que faz com cada frame de acordo com o tipo
     while (!frames.empty()) {
@@ -410,7 +438,7 @@ void server::start_receveing_message() {
         client_answer.push(create_ack_nack(ACK, f->get_seq()));
       }
 
-      cout << "Frame recebido: \n";
+      // cout << "Frame recebido: \n"; ->log
       f->imprime(DEC);
       cout << "\n";
 
@@ -446,24 +474,24 @@ void server::start_receveing_message() {
       lastSeq = f->get_seq();
     }
 
-    cout << "Recebeu todos os frames de uma janela\n";
+    // cout << "Recebeu todos os frames de uma janela\n";
 
     // Envia a reposta ao cliente
-    cout << "Enviando acks e nacks para o cliente\n";
+    // cout << "Enviando acks e nacks para o cliente\n";
     while (!client_answer.empty()) {
       frame *f_answer = client_answer.front();
       client_answer.pop();
 
       if (socket->send_frame(f_answer) == -1) {
-        cout << "Falha ao enviar a resposta\n";
+        // cout << "Falha ao enviar a resposta\n"; ->log
         return;
       }
 
-      if (f_answer->get_tipo() == NACK)
-        cout << "NACK " << (int)f_answer->get_dado()[0] << " enviado\n";
+      // if (f_answer->get_tipo() == NACK)
+      //   cout << "NACK " << (int)f_answer->get_dado()[0] << " enviado\n";
 
-      else
-        cout << "ACK " << (int)f_answer->get_dado()[0] << " enviado\n";
+      // else
+      //   cout << "ACK " << (int)f_answer->get_dado()[0] << " enviado\n"; ->log
     }
 
     cout << "Todos os ACKs e NACKs foram enviados\n";

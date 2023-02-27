@@ -75,13 +75,13 @@ frame *client::receive_ack_nack() {
 
     do {
       retries++;
-      if ( ! (response = socket->receive_frame()) ) { continue; }
-    } while ( response == NULL && retries < NUM_RETRIES );
+      if (!(response = socket->receive_frame())) { continue; }
+    } while (response == NULL && retries < NUM_RETRIES);
 
-    if (response && response->get_tipo() == ERRO) {
-      cout << BOLDYELLOW << "Espaco insulficiente no destino\n" << RESET;
-      return NULL;
-    }
+    // if (response && response->get_tipo() == ERRO) {
+    //   cout << BOLDYELLOW << "Espaco insulficiente no destino\n" << RESET;
+    //   return NULL;
+    // }
   } while (response && !(verify_ack_nack(response)));
 
   return response;
@@ -97,8 +97,9 @@ frame *client::send_frame_socket(frame *f) {
     if (!response) return NULL;
   } while (response->get_dado()[0] != f->get_seq());
 
-  cout << "\tACK recebido:\n";
-  response->imprime(DEC);
+  // cout << "\tACK recebido:\n"; // ->log
+  // response->imprime(DEC); // ->log
+
   return response;
 }
 
@@ -119,15 +120,15 @@ int client::start_transmission() {
 
 // Encerra a transmissao com o servidor
 int client::end_transmission() {
-   cout << "\tEncerrando a transmissao\n";// ->log
+  cout << "\tEncerrando a transmissao\n"; // ->log
   frame *end = new frame(FIMT, 0, vector<char>(1, 0));
   frame *enviado = send_frame_socket(end);
   if (!enviado) {
-     cout << "\tFalha ao encerrar a transmissao\n";// ->log
+    cout << "\tFalha ao encerrar a transmissao\n"; // ->log
     return 0;
   }
 
-   cout << "\tTransmissao encerrada com sucesso\n";// ->log
+  cout << "\tTransmissao encerrada com sucesso\n"; // ->log
   return 1;
 }
 
@@ -147,7 +148,7 @@ int client::send_frames(vector<frame *> frames) {
 
   // Adiciona o frame de fim de transmissao
   int next_seq = frames.back()->get_seq() + 1;
-  frame *end = new frame(FIMT, next_seq, vector<char>(1, next_seq ));
+  frame *end = new frame(FIMT, next_seq, vector<char>(1, next_seq));
   frames.push_back(end);
 
   // Cria a fila de frames
@@ -161,19 +162,20 @@ int client::send_frames(vector<frame *> frames) {
       if (iniJanela + frameCounter == frames.size()) { break; }
       janela.push((iniJanela + frameCounter) % 16);
 
-      cout << "\tEnviando frame\n";
-      frames[iniJanela + frameCounter]->imprime(DEC);
+      // cout << "\tEnviando frame\n"; ->log
+      // frames[iniJanela + frameCounter]->imprime(DEC); ->log
 
       if (socket->send_frame(frames[iniJanela + frameCounter]) == -1) {
-        cout << "Falha ao enviar o frame\n";
+        // cout << "Falha ao enviar o frame\n"; ->log
         return 0;
       }
 
-      cout << "\tFrame enviado com sucesso\n";
+      // cout << "\tFrame enviado com sucesso\n"; ->log
     }
 
     // Recebe a resposta do servidor
-    while ( !janela.empty() ) {
+    while (!janela.empty()) {
+      cout << "Janela size: " << janela.size() << "\n";
       frame *res = NULL;
       int retries = 0;
 
@@ -181,7 +183,7 @@ int client::send_frames(vector<frame *> frames) {
         retries++;
         res = receive_ack_nack();
       } while (res == NULL && retries < NUM_RETRIES);
-      
+
       if (res == NULL && retries == NUM_RETRIES) { break; }
 
       cout << "Resposta recebida\n";
@@ -189,10 +191,18 @@ int client::send_frames(vector<frame *> frames) {
            << "Janela front: " << janela.front() << "\n";
 
       if (res->get_tipo() == NACK && res->get_dado()[0] == janela.front()) {
-        cout << "NACK " << (int)res->get_dado()[0] << " recebido\n";
+        // cout << "NACK " << (int)res->get_dado()[0] << " recebido\n"; ->log
         iniJanela += res->get_dado()[0];
         janela.pop();
         break;
+      }
+      if (res->get_tipo() == ERRO) {
+        cout << BOLDBLUE << "\tErro recebido: " << RED << res->get_dado() << "\n"
+             << RESET;
+        
+        janela = queue<int>();
+        frames.clear();
+        return 0;
       }
 
       if (res->get_tipo() == ACK && res->get_dado()[0] == janela.front()) {
@@ -205,7 +215,6 @@ int client::send_frames(vector<frame *> frames) {
     // apaga a janela
     while (!janela.empty())
       janela.pop();
-
   }
 
   cout << "\tTerminou de enviar todos os frames\n"; //->log
@@ -222,7 +231,11 @@ int client::send_frames(vector<frame *> frames) {
  * @return false
  */
 bool client::verify_ack_nack(frame *received) {
-  return ((received->get_tipo() == ACK || received->get_tipo() == NACK) &&
+  // received error frame
+  // cout << "Verificando ACK/NACK/Error\n"; ->log
+
+  return ((received->get_tipo() == ACK || received->get_tipo() == NACK ||
+           received->get_tipo() == ERRO) &&
           received->chk_crc8());
 }
 
@@ -282,7 +295,7 @@ void client::send_file() {
   string fileName;
 
   do {
-    cout << BOLDWHITE << "Digite o nome do arquivo(maximo de " << TAM_DADOS
+    cout << BOLDYELLOW << "Digite o nome do arquivo(maximo de " << TAM_DADOS
          << " char):\n"
          << RESET;
     getline(cin, fileName);
@@ -291,7 +304,7 @@ void client::send_file() {
   fileNameVector.insert(fileNameVector.begin(), fileName.begin(),
                         fileName.end());
 
-  cout << BOLDYELLOW << "\t--Enviando arquivo--\n" << RESET;
+  cout << BOLDBLUE << "\t--Enviando arquivo--\n" << RESET;
   if (!send_message(fileNameVector, MIDIA)) {
     cout << BOLDRED << "\t--Falha ao enviar o arquivo--\n" << RESET;
     return;
@@ -307,11 +320,11 @@ void client::send_file() {
  */
 void client::send_text(string message) {
 
-  cout << BOLDYELLOW << "\t--Enviando mensagem--\n" << RESET;
+  cout << BOLDBLUE << "\t--Enviando mensagem--\n" << RESET;
 
   vector<char> data(message.begin(), message.end());
   if (!send_message(data, TEXTO))
-    cout << BOLDRED << "\t--Limite de timout, mensagem nao foi enviada--\n"
+    cout << RED << "\t--Limite de timout, mensagem nao foi enviada--\n"
          << RESET;
   else
     cout << GREEN << "\t--Mensagem enviada com sucesso--\n" << RESET;
@@ -323,7 +336,7 @@ vector<frame *> client::create_frames_midia(vector<char> vectorName) {
   // Cria um vetor com o tamanho do arquivo
   vector<char> vectorTam;
   string fileName = string(vectorName.begin(), vectorName.end());
-  cout << "Nome do arquivo- create frames midia: " << fileName << endl;
+  // cout << "Nome do arquivo- create frames midia: " << fileName << endl;
   string fileSize = calc_file_size(fileName);
   if (fileSize.empty()) { return vector<frame *>(); }
   vectorTam.insert(vectorTam.begin(), fileSize.begin(), fileSize.end());
@@ -339,7 +352,7 @@ vector<frame *> client::create_frames_midia(vector<char> vectorName) {
   // Cria um vetor com os dados do arquivo
   vector<char> vectorData = read_file(fileName);
   if (vectorData.empty()) {
-    cout << BOLDRED << "\t--Falha ao abrir o arquivo para leitura--\n"
+    cout << REG_RDI << "\t--Falha ao abrir o arquivo para leitura--\n"
          << RESET; //->log
     return vector<frame *>();
   }
@@ -412,7 +425,7 @@ void client::run() {
   int i;
   print_help();
   while (true) {
-    cout << BOLDWHITE << "\nDigite um comando ou mensagem:\n" << RESET;
+    cout << BOLDYELLOW << "\nDigite um comando ou mensagem:\n" << RESET;
 
     getline(cin, userInput);
     char userInputCMD = string_cmd(userInput);
@@ -423,7 +436,7 @@ void client::run() {
       break;
 
     case 'e':
-      cout << BOLDYELLOW << "\tSaindo...\n" << RESET;
+      cout << BOLDBLUE << "\tSaindo...\n" << RESET;
       exit(0);
       break;
 
