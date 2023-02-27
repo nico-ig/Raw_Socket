@@ -23,13 +23,13 @@
 #include "frame.h"
 using namespace std;
 
-#define NUM_RETRIES 10
+#define NUM_RETRIES 50
 #define TAM_JANELA 2
 
 class conexao {
 private:
   // ------ Dados ------ //
-  int timeoutMillis = 500; // Tempo que fica tentando ler
+  
   int sequence = -1;       // sequencia do último frame recebido
   int local, target;       // local and target ip address
 
@@ -43,20 +43,20 @@ private:
   int device;
   struct sockaddr_ll endereco; // endereco do socket
 
-  vector<int> timeoutValues = {1, 2, 4, 8, 16, 32, 64, 128, 256, 512};
-
   // ----- Funçoes ------ //
   int add_escapes(char *f, char *out);
   int remove_escapes(char *f, char *out);
   int ConexaoRawSocket(char *device);
-  long long timestamp();
   void close_connection(); // fecha a conexao
 
 public:
+  int timeoutMillis = 500; // Tempo que fica tentando ler
+
   // ------ Construtor ------ //
   conexao(char *deviceIP);
   frame *receive_frame();   // recebe um pacote
   int send_frame(frame *f); // envia um pacote
+  long long timestamp();
 
   int get_socket() { return device; };
 };

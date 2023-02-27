@@ -102,7 +102,7 @@ frame *client::send_frame_socket(frame *f) {
   }
 
   cout << "\tACK recebido:\n";
-  response->imprime(HEX);
+  response->imprime(DEC);
   return response;
 }
 
@@ -161,7 +161,7 @@ int client::send_frames(vector<frame *> frames) {
       janela.push(frameCounter);
 
       cout << "\tEnviando frame\n";
-      frames[iniJanela]->imprime(HEX);
+      frames[iniJanela]->imprime(DEC);
 
       if (socket->send_frame(frames[iniJanela + frameCounter]) == -1) {
         cout << "Falha ao enviar o frame\n";
@@ -319,10 +319,10 @@ void client::send_text(string message) {
 vector<frame *> client::create_frames_midia(vector<char> vectorName) {
   vector<frame *> framesToSend;
   vector<frame *> framesAux;
-
   // Cria um vetor com o tamanho do arquivo
   vector<char> vectorTam;
   string fileName = string(vectorName.begin(), vectorName.end());
+  cout << "Nome do arquivo- create frames midia: " << fileName << endl;
   string fileSize = calc_file_size(fileName);
   if (fileSize.empty()) { return vector<frame *>(); }
   vectorTam.insert(vectorTam.begin(), fileSize.begin(), fileSize.end());

@@ -146,7 +146,7 @@ int server::send_nack(frame *fReceive) {
 bool server::verify_seq(int seq, int lastSeq) {
   if ( seq == 0 )
   {
-    if ( lastSeq != 15 ) { return false; }
+    if ( lastSeq != TAM_JANELA - 1 ) { return false; }
     return true;
   }
 
@@ -296,16 +296,23 @@ string server::create_file_destination(string fileName)
 }
 
 ofstream server::create_file(string fileName) {
+ cout << "Criando arquivo\n";
+ cout << "Nome do arquivo: " << fileName << "\n";
+//  long long start = socket->timestamp();
+//  struct timeval timeout = {.tv_sec = 0, .tv_usec = socket->timeoutMillis * 1000};
   string fileDestination = create_file_destination(fileName);
 
-  cout << BOLDWHITE << "Criando arquivo " << BOLDYELLOW << fileDestination
-       << BOLDWHITE << ". Digite novo nome ou enter para continuar: " << RESET;
+//  cout << BOLDWHITE << "Criando arquivo " << BOLDYELLOW << fileDestination
+//       << BOLDWHITE << ". Digite novo nome ou enter para continuar: " << RESET;
 
-  string newDestination = "";
-  getline(cin, newDestination);
-  if (!newDestination.empty() && newDestination != "\n") {
-    fileDestination = newDestination;
-  }
+//  string newDestination = "";
+//  do {
+//    getline(cin, newDestination);
+//  } while (socket->timestamp() - start <= socket->timeoutMillis);
+
+//  if (!newDestination.empty() && newDestination != "\n") {
+//    fileDestination = newDestination;
+//  }
   cout << YELLOW << "\t--Criando arquivo: " << fileDestination << "--\n"
        << RESET;
 
@@ -316,7 +323,9 @@ ofstream server::create_file(string fileName) {
 }
 
 int server::receive_midia(frame *f) {
-  
+  cout << "Recebendo midia:\n"
+        << "Seq: " << int(f->get_seq()) << "\n"
+        << "Dado: " << f->get_dado() << "\n";
   ofstream file;
 
   // Escreve o dado no arquivo
@@ -332,6 +341,7 @@ int server::receive_midia(frame *f) {
     cout << "Recebendo tamanho do arquivo\n";
     if (!create_received_dir()) { return 0; }
     if (!receive_file_size(f))  { return 0; }
+    return 1;
   }
 
   // Segundo frame de midia
@@ -395,6 +405,7 @@ queue<frame *> server::receive_frames_window(int lastSeq)
 {
   queue<frame *> frames_queue;
   frame *f;
+  int midia_cnt = 0;
   int retries = 0;
 
   do {
@@ -420,6 +431,7 @@ queue<frame *> server::receive_frames_window(int lastSeq)
       frames_queue.push(f);
       lastSeq = 0;
       retries = 0;
+      midia_cnt++;
       continue; 
     }
 
@@ -428,12 +440,13 @@ queue<frame *> server::receive_frames_window(int lastSeq)
     if ( tipo == MIDIA && tipoReceivingFrames == MIDIA )
     {
       // Ignora se for um frame do tipo midia que nao e o segundo da sequencia
-      if ( lastSeq != 0 || (TAM_JANELA > 1 && f->get_seq() != 1)) { continue; }
+      if ( !(midia_cnt != 1 && TAM_JANELA == 1) ) { continue; }
 
       // Se for o segundo frame do tipo midia, muda o tipo esperado
       tipoReceivingFrames = DADOS;
       frames_queue.push(f);
-      lastSeq = 1;
+      midia_cnt++;
+      lastSeq = f->get_seq();
       retries = 0;
       continue;
     }
@@ -469,6 +482,7 @@ void server::start_receveing_message() {
   int continueTransmission = 1;
   int lastSeq = -1;
   int tipo_data = -1;
+  int midia_cnt = 0;
   vector<char> data;
   queue<frame *> client_answer;
 
@@ -497,7 +511,7 @@ void server::start_receveing_message() {
       }
       
       cout << "Frame recebido: \n";
-      f->imprime(HEX);
+      f->imprime(DEC);
       cout << "\n";
 
       int tipo = f->get_tipo();
@@ -518,9 +532,10 @@ void server::start_receveing_message() {
           break;
 
         case MIDIA:
+          if ( TAM_JANELA == 1 && midia_cnt == 1) { f->set_seq(1); } 
           if ( !receive_midia(f) ) { return; }
-          lastSeq = f->get_seq();
           tipo_data = next_tipo_midia(f);
+          midia_cnt++;
           break;
 
         case DADOS:
