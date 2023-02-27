@@ -23,6 +23,7 @@
 // include local
 #include "conexao.h"
 #include "frame.h"
+#include "cores.h"
 
 #define FILE_DESTINATION "./received"
 
@@ -195,7 +196,7 @@ bool server::create_received_dir() {
   }
 
   // create the directory
-  if (mkdir(FILE_DESTINATION, 0700) == -1) {
+  if (mkdir(FILE_DESTINATION, 0777) == -1) {
     cout << "Erro ao criar o diretorio\n";
     return false;
   }
@@ -263,15 +264,21 @@ int server::receive_file_data(string fileName) {
   fileDestination.push_back('/');
   fileDestination.append(fileName);
 
+  cout << BOLDGREEN << "Criando arquivo " << BOLDYELLOW << fileDestination
+       << BOLDGREEN << ". Digite novo nome ou enter para continuar: " << RESET;
+
+  string newDestination = "";
+  getline(cin, newDestination);
+  if(!newDestination.empty() && newDestination != "\n" ) { fileDestination = newDestination; }
+  cout << YELLOW << "Criando arquivo: " << fileDestination << "\n" << RESET;
+            
   // Abre o arquivo para escrita
   ofstream file;
   file.open(fileDestination, ios::binary);
   if (!file.is_open()) {
-    cout << "Falha ao criar o arquivo. Abortado\n";
+    cout << RED << "\tFalha ao criar o arquivo. Abortado\n" << RESET;
     return 0;
   }
-
-  cout << "Arquivo criado com sucesso\n";
 
   int lastSeq = 1;
   frame *f;
@@ -282,7 +289,12 @@ int server::receive_file_data(string fileName) {
 
     // Fica tentando receber um frame
     f = receive_frame_socket();
-    if (f == NULL) { return 0; }
+    if (f == NULL) {
+      cout << "Erro ao receber dados do arquivo";
+      file.close();
+      remove(fileDestination.c_str());
+      return 0;
+    }
 
     cout << "Frame recebido\n";
     f->imprime(HEX);
@@ -329,11 +341,11 @@ void server::receive_midia(frame *f) {
   if (fileName.size() == 0) { return; }
 
   if ( !receive_file_data(fileName) ) {
-    cout << "Falha ao receber o arquivo\n";
+    cout << RED << "\tFalha ao receber o arquivo\n" << RESET;
     return;
   }
 
-  cout << "Arquivo recebido com sucesso\n";
+  cout << GREEN << "\tArquivo recebido com sucesso\n" << RESET;
 }
 
 // Recebe um frame do cliente

@@ -111,6 +111,7 @@ int client::send_frame_socket(frame *f) {
   return 1;
 }
 
+
 // Inicia a transmissao com o servidor
 int client::start_transmission() {
   cout << "\tIniciando transmissao\n";
@@ -229,6 +230,7 @@ vector<char> client::read_file(string fileName) {
   file.close();
   return fileData;
 }
+
 
 /**
  * @brief Send a file through the socket
