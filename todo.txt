@@ -1,5 +1,12 @@
 -> Ver se os frames que estao vindo sao arquivos e juntar eles no arquivo
 
+<<<<<<< HEAD
+-> Fazer send_error
+
+-> Arrumar o receive text
+
+=======
+>>>>>>> db29f5efa0a686ffe08f19d3553a889be3c6e4d5
 -> Arrumar a interface
 
 -> Demonstracao correcao de erros

@@ -21,6 +21,7 @@
 #include <sys/types.h>
 
 // include local
+#include "cores.h"
 #include "frame.h"
 #include "macros.h"
 #include "conexao.h"
@@ -50,6 +51,7 @@ private:
   bool      create_received_dir ();
   UL        chk_available_size  ();
   int       receive_file_size   (frame *f);
+  string    create_file_destination(string fileName);
   ofstream  create_file         (string fileName);
   int       receive_midia       (frame *f);
   //void send_confirm(frame *fReceive);
@@ -155,7 +157,9 @@ bool server::verify_seq(int seq, int lastSeq) {
 int server::next_tipo_midia(frame *f) {
   if ( f->get_tipo() != MIDIA ) { return -1; }
   if ( f->get_seq() == 0 )      { return MIDIA; }
-  if ( f->get_seq() == 1 )      { return DADOS; }
+  if ( f->get_seq() == 1 )      {
+    cout << YELLOW << "\t--Recebendo dados arquivo--\n" << RESET;
+    return DADOS; }
 
   return -1;
 }
@@ -183,7 +187,7 @@ int server::next_tipo_midia(frame *f) {
 UL server::chk_available_size() {
   struct statvfs st;
   if (statvfs(FILE_DESTINATION, &st) == -1) {
-    cout << "Erro no statvfs, abortado\n";
+    // cout << "Erro no statvfs, abortado\n";->log
     // send_error();
     return -1;
   }
@@ -202,12 +206,13 @@ int server::receive_file_size(frame *f) {
  int fileSize = stoi(f->get_dado());
 
  if (fileSize > availSize * 0.9) {
-   cout << "Tamanho do arquivo muito grande, abortado\n";
-   // send_error();
-   return 0;
+    cout << BOLDMAGENTA << "\t--Tamanho do arquivo muito grande, abortado--\n"
+         << RESET;
+    // send_error();
+    return 0;
  }
 
-  cout << "Espaco suficiente em disco\n";
+  // cout << "Espaco suficiente em disco\n"; ->log
   return 1;
 }
 
@@ -217,17 +222,17 @@ bool server::create_received_dir() {
   // Check if the directory exists
   struct stat info;
   if (stat(FILE_DESTINATION, &info) == 0 && (info.st_mode & S_IFDIR)) {
-    cout << "Diretorio ja existe\n";
+    // cout << "Diretorio ja existe\n"; ->log
     return true;
   }
 
   // create the directory
-  if (mkdir(FILE_DESTINATION, 0700) == -1) {
-    cout << "Erro ao criar o diretorio\n";
+  if (mkdir(FILE_DESTINATION, 0777) == -1) {
+    cout << RED << "Erro ao criar o diretorio\n" << RESET;
     return false;
   }
 
-  cout << "Diretorio criado com sucesso\n";
+  // cout << "Diretorio criado com sucesso\n"; ->log
   return true;
 }
 
@@ -280,11 +285,29 @@ bool server::create_received_dir() {
 //}
 //
 
-ofstream server::create_file(string fileName) {
+string server::create_file_destination(string fileName)
+{
   string fileDestination;
   fileDestination.append(FILE_DESTINATION);
   fileDestination.push_back('/');
   fileDestination.append(fileName);
+
+  return fileDestination;
+}
+
+ofstream server::create_file(string fileName) {
+  string fileDestination = create_file_destination(fileName);
+
+  cout << BOLDWHITE << "Criando arquivo " << BOLDYELLOW << fileDestination
+       << BOLDWHITE << ". Digite novo nome ou enter para continuar: " << RESET;
+
+  string newDestination = "";
+  getline(cin, newDestination);
+  if (!newDestination.empty() && newDestination != "\n") {
+    fileDestination = newDestination;
+  }
+  cout << YELLOW << "\t--Criando arquivo: " << fileDestination << "--\n"
+       << RESET;
 
   // Abre o arquivo para escrita
   ofstream file;
@@ -317,11 +340,13 @@ int server::receive_midia(frame *f) {
 
   if (!file.is_open())
   {
-   cout << "Falha ao criar o arquivo. Abortado\n";
-   return 0;
+    cout << RED << "\tFalha ao criar o arquivo. Abortado\n" << RESET;
+    file.close();
+    remove(create_file_destination(fileName).c_str());
+    return 0;
   }
 
-  cout << "Arquivo criado com sucesso\n";
+  // cout << BOLDGREEN << "\t--Arquivo recebido com sucesso--\n" << RESET;
   if ( !file.is_open() )     { return 0; }
   return 1;
 }
@@ -337,7 +362,7 @@ frame *server::receive_frame_socket() {
   } while (fReceive == NULL && retries < NUM_RETRIES);
 
   if (fReceive == NULL && retries == NUM_RETRIES) {
-    cout << "Desisti de receber o frame\n";
+    // cout << "Desisti de receber o frame\n"; ->log
     return NULL;
   }
 
@@ -535,11 +560,13 @@ void server::start_receveing_message() {
 
   } while (continueTransmission);
 
-  if ( tipo_data == TEXTO ) 
-    cout << ">>>>>>>>>>>>>> Mensagem recebida: " << string(data.begin(), data.end()) << "\n";
+  if ( tipo_data == TEXTO )
+    cout << BOLDYELLOW << "\t--Mensagem recebida--\n " << BOLDWHITE
+         << string(data.begin(), data.end()) << "\n"
+         << RESET;
 
   if ( tipo_data == DADOS )
-    cout << ">>>>>>>>>>>>>> Arquivo recebido\n";
+    cout << BOLDGREEN << "\t--Arquivo recebido com sucesso--\n" << RESET;
 }
 
 // ------------------------------- PUBLIC --------------------------------- //
@@ -552,14 +579,17 @@ void server::run() {
     frame *fReceive;
     if (!(fReceive = socket->receive_frame())) { continue; }
 
-    cout << "Frame recebido:" << endl;
-    fReceive->imprime(HEX);
+    // cout << "Frame recebido:" << endl; ->log
+    // fReceive->imprime(HEX);
 
     // Verifica se o frame eh de inicio de transmissao e se nao veio com erro
     int frameType = fReceive->get_tipo();
-    if (frameType != INIT) { cout << "Frame ignorado, n eh INIT\n"; continue; }
+    if (frameType != INIT) {
+      // cout << "Frame ignorado, n eh INIT\n"; ->log
+      continue;
+    }
 
-    cout << "Frame de INIT\n";
+    // cout << "Frame de INIT\n"; ->log
     if (!fReceive->chk_crc8()) {
       send_nack(fReceive);
       continue;

@@ -8,7 +8,6 @@
 #include <iostream>
 #include <linux/if.h>
 #include <linux/if_packet.h>
-#include <mutex>
 #include <net/ethernet.h>
 #include <netinet/in.h>
 #include <stdio.h>
@@ -21,14 +20,8 @@
 
 // include local
 #include "conexao.h"
+#include "cores.h"
 #include "frame.h"
-
-vector<string> CMD_HELP = {"H",  "help",  "-h",    "HELP", "Help",
-                           "-H", "ajuda", "Ajuda", "AJUDA"};
-vector<string> CMD_EXIT = {"exit", "-e",   "EXIT", "Exit",
-                           "-E",   "sair", "Sair", "SAIR"};
-vector<string> CMD_SEND = {"send", "-s",     "SEND",   "Send",
-                           "-S",   "enviar", "Enviar", "ENVIAR"};
 
 using namespace std;
 
@@ -52,7 +45,7 @@ private:
   frame *receive_ack_nack();
   vector<frame *> create_frames(vector<char> data, int type);
   vector<frame *> create_frames_midia(vector<char> data);
-  frame* send_frame_socket(frame *f);
+  frame *send_frame_socket(frame *f);
   int start_transmission();
   int end_transmission();
   string calc_file_size(string fileName);
@@ -80,28 +73,26 @@ frame *client::receive_ack_nack() {
   do {
     response = socket->receive_frame();
     if (response && response->get_tipo() == ERRO) {
-      cout << "Espaco insulficiente no destino\n";
+      cout << BOLDYELLOW << "Espaco insulficiente no destino\n" << RESET;
       return NULL;
     }
-  } while (response &&
-           !(verify_ack_nack(response)));
+  } while (response && !(verify_ack_nack(response)));
 
   return response;
 }
 
 // Solicita ao socket que envie um frame
-frame* client::send_frame_socket(frame *f) {
+frame *client::send_frame_socket(frame *f) {
   // Fica tentando enviar o frame até receber o ack
   frame *response = new frame();
   int retries = 0;
   do {
     // envia um frame da fila
     int bytesSent = socket->send_frame(f);
-    if ( bytesSent == -1 ) { return NULL; }
-    
+    if (bytesSent == -1) { return NULL; }
+
     response = receive_ack_nack();
-    if(!response)
-      return NULL;
+    if (!response) return NULL;
     retries++;
   } while (response->get_dado()[0] != f->get_seq() && retries < NUM_RETRIES);
 
@@ -117,30 +108,30 @@ frame* client::send_frame_socket(frame *f) {
 
 // Inicia a transmissao com o servidor
 int client::start_transmission() {
-  cout << "\tIniciando transmissao\n";
+  // cout<< YELLOW << "\tIniciando transmissao\n" << RESET; ->log
   frame *ini = new frame(INIT, 0, vector<char>(1, 0));
-  frame* enviado = new frame();
+  frame *enviado = new frame();
   enviado = send_frame_socket(ini);
   if (!enviado) {
-    cout << "\tFalha ao iniciar a transmissao\n";
+    // cout<< BOLDRED << "\tFalha ao iniciar a transmissao\n" << RESET; ->log
     return 0;
   }
 
-  cout << "\tTransmissao iniciada com sucesso\n";
+  // cout<< GREEN << "\tTransmissao iniciada com sucesso\n" << RESET; ->log
   return 1;
 }
 
 // Encerra a transmissao com o servidor
 int client::end_transmission() {
-  cout << "\tEncerrando a transmissao\n";
+  // cout << "\tEncerrando a transmissao\n"; ->log
   frame *end = new frame(FIMT, 0, vector<char>(1, 0));
-  frame* enviado = send_frame_socket(end);
+  frame *enviado = send_frame_socket(end);
   if (!enviado) {
-    cout << "\tFalha ao encerrar a transmissao\n";
+    // cout << "\tFalha ao encerrar a transmissao\n"; ->log
     return 0;
   }
 
-  cout << "\tTransmissao encerrada com sucesso\n";
+  // cout << "\tTransmissao encerrada com sucesso\n"; ->log
   return 1;
 }
 
@@ -164,16 +155,15 @@ int client::send_frames(vector<frame *> frames) {
   int iniJanela = 0;
   while (iniJanela < frames.size()) {
 
-    //manda todos os frames de uma vez só
-    for(frameCounter = 0; frameCounter < TAM_JANELA; frameCounter++){
-      if(iniJanela+frameCounter == frames.size()) { break; }
+    // manda todos os frames de uma vez só
+    for (frameCounter = 0; frameCounter < TAM_JANELA; frameCounter++) {
+      if (iniJanela + frameCounter == frames.size()) { break; }
       janela.push(frameCounter);
-      
+
       cout << "\tEnviando frame\n";
       frames[iniJanela]->imprime(HEX);
-      
-      if (socket->send_frame(frames[iniJanela+frameCounter]) == -1)
-      {
+
+      if (socket->send_frame(frames[iniJanela + frameCounter]) == -1) {
         cout << "Falha ao enviar o frame\n";
         return 0;
       }
@@ -183,7 +173,7 @@ int client::send_frames(vector<frame *> frames) {
 
     // Recebe a resposta do servidor
     for (int i = 0; i < min((int)TAM_JANELA, (int)frames.size()); i++) {
-      frame* res = NULL;
+      frame *res = NULL;
       int retries = 0;
 
       do {
@@ -191,34 +181,33 @@ int client::send_frames(vector<frame *> frames) {
         retries++;
       } while (res == NULL && retries < NUM_RETRIES);
 
-      if(res == NULL && retries == NUM_RETRIES){
-        return 0;
-      }
-      
-      if(res->get_tipo() == NACK && res->get_dado()[0] == janela.front()){
-        cout << "NACK " << (int)res->get_dado()[0] << " recebido\n" ;
+      if (res == NULL && retries == NUM_RETRIES) { return 0; }
+
+      if (res->get_tipo() == NACK && res->get_dado()[0] == janela.front()) {
+        cout << "NACK " << (int)res->get_dado()[0] << " recebido\n";
         iniJanela += res->get_dado()[0];
         janela.pop();
         break;
       }
 
-      if(res->get_tipo() == ACK && res->get_dado()[0] == janela.front()){
-        cout << "ACK " << (int)res->get_dado()[0] << " recebido\n" ;
+      if (res->get_tipo() == ACK && res->get_dado()[0] == janela.front()) {
+        cout << "ACK " << (int)res->get_dado()[0] << " recebido\n";
         iniJanela++;
         janela.pop();
       }
 
-      else{
+      else {
         i--;
       }
     }
 
-    //apaga a janela
-    while(! janela.empty()) janela.pop();
+    // apaga a janela
+    while (!janela.empty())
+      janela.pop();
   }
 
   if (!end_transmission()) { return 0; }
-  cout << "\tTerminou de enviar todos os frames\n";
+  // cout << "\tTerminou de enviar todos os frames\n"; ->log
   return 1;
 }
 
@@ -232,7 +221,8 @@ int client::send_frames(vector<frame *> frames) {
  * @return false
  */
 bool client::verify_ack_nack(frame *received) {
-  return ((received->get_tipo() == ACK || received->get_tipo() == NACK) && received->chk_crc8());
+  return ((received->get_tipo() == ACK || received->get_tipo() == NACK) &&
+          received->chk_crc8());
 }
 
 /**
@@ -262,7 +252,7 @@ int client::send_message(vector<char> data, int type) {
 string client::calc_file_size(string fileName) {
   struct stat buffer;
   if (stat(fileName.c_str(), &buffer) == -1) {
-    cout << "Arquivo inexistente. Operacao abortada\n";
+    cout << YELLOW << "\t--Arquivo inexistente. Operacao abortada--\n" << RESET;
     return {};
   }
 
@@ -291,20 +281,22 @@ void client::send_file() {
   string fileName;
 
   do {
-    cout << "Digite o nome do arquivo(maximo de " << TAM_DADOS
-         << " char):\n";
+    cout << BOLDWHITE << "Digite o nome do arquivo(maximo de " << TAM_DADOS
+         << " char):\n"
+         << RESET;
     getline(cin, fileName);
   } while (fileName.size() > TAM_DADOS);
 
   fileNameVector.insert(fileNameVector.begin(), fileName.begin(),
                         fileName.end());
 
+  cout << BOLDYELLOW << "\t--Enviando arquivo--\n" << RESET;
   if (!send_message(fileNameVector, MIDIA)) {
-    cout << "Falha ao enviar o arquivo\n";
+    cout << BOLDRED << "\t--Falha ao enviar o arquivo--\n" << RESET;
     return;
   }
 
-  cout << "Arquivo enviado com sucesso\n";
+  cout << BOLDGREEN << "\t--Arquivo enviado com sucesso--\n" << RESET;
 }
 
 /**
@@ -314,14 +306,14 @@ void client::send_file() {
  */
 void client::send_text(string message) {
 
-  cout << "Enviando mensagem\n";
+  cout << BOLDYELLOW << "\t--Enviando mensagem--\n" << RESET;
 
   vector<char> data(message.begin(), message.end());
   if (!send_message(data, TEXTO))
-    cout << "Limite de timout, mensagem nao foi enviada\n";
-
+    cout << BOLDRED << "\t--Limite de timout, mensagem nao foi enviada--\n"
+         << RESET;
   else
-    cout << "Mensagem enviada com sucesso\n";
+    cout << GREEN << "\t--Mensagem enviada com sucesso--\n" << RESET;
 }
 
 vector<frame *> client::create_frames_midia(vector<char> vectorName) {
@@ -346,7 +338,8 @@ vector<frame *> client::create_frames_midia(vector<char> vectorName) {
   // Cria um vetor com os dados do arquivo
   vector<char> vectorData = read_file(fileName);
   if (vectorData.empty()) {
-    cout << "Falha ao abrir o arquivo para leitura\n";
+    cout << BOLDRED << "\t--Falha ao abrir o arquivo para leitura--\n"
+         << RESET; //->log
     return vector<frame *>();
   }
 
@@ -356,7 +349,7 @@ vector<frame *> client::create_frames_midia(vector<char> vectorName) {
 
   // Arruma a sequencia dos frames
   for (int i = 0; i < framesToSend.size(); i++)
-    framesToSend[i]->set_seq(i%TAM_JANELA);
+    framesToSend[i]->set_seq(i % TAM_JANELA);
 
   return framesToSend;
 }
@@ -396,30 +389,29 @@ bool client::string_has(string str, vector<string> strList) {
 }
 
 char client::string_cmd(string str) {
-  if (string_has(str, CMD_HELP)) return 'h';
-
-  if (string_has(str, CMD_EXIT)) return 'e';
-
-  if (string_has(str, CMD_SEND)) return 's';
-
+  if (strcmp(str.c_str(), "-h") == 0) return 'h';
+  if (strcmp(str.c_str(), "-e") == 0) return 'e';
+  if (strcmp(str.c_str(), "-s") == 0) return 's';
   return 'm';
 }
 
 void client::print_help() {
-  cout << "Comandos disponiveis:\n";
-  cout << "help ou -h ou h ou HELP ou Help ou H ou ajuda ou Ajuda ou AJUDA\n";
-  cout << "exit ou -e ou e ou EXIT ou Exit ou E ou sair ou Sair ou SAIR\n";
-  cout << "send ou -s ou s ou SEND ou Send ou S ou enviar ou Enviar ou "
-          "ENVIAR\n";
-  cout << "para enviar uma mensagem, digite a mensagem e pressione enter\n";
+  cout << BOLDBLUE << "\t---Comandos disponiveis---\n" << RESET;
+  cout << YELLOW
+       << "para enviar uma mensagem, digite a mensagem e pressione enter\n"
+       << RESET;
+  cout << GREEN << "-s: " << WHITE << "envia um arquivo\n" << RESET;
+  cout << RED << "-e: " << WHITE << "sai do programa\n" << RESET;
+  cout << BLUE << "-h: " << WHITE << "exibe os comandos disponíveis\n" << RESET;
 }
 
 // ------------------------------- PUBLIC --------------------------------- //
 
 void client::run() {
   int i;
+  print_help();
   while (true) {
-    cout << " Digite um comando ou mensagem:\n";
+    cout << BOLDWHITE << "\nDigite um comando ou mensagem:\n" << RESET;
 
     getline(cin, userInput);
     char userInputCMD = string_cmd(userInput);
@@ -430,7 +422,7 @@ void client::run() {
       break;
 
     case 'e':
-      cout << "Saindo...\n";
+      cout << BOLDYELLOW << "\tSaindo...\n" << RESET;
       exit(0);
       break;
 
@@ -443,7 +435,7 @@ void client::run() {
       break;
 
     default:
-      cout << "Comando invalido\n";
+      cout << BOLDMAGENTA << "\tComando invalido\n" << RESET;
       break;
     }
   }
